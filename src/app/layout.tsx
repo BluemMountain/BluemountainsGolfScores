@@ -3,14 +3,12 @@ import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 
 // Google Fonts setup
-import { Inter as FontInter, Outfit as FontOutfit } from 'next/font/google'
-
-const inter = FontInter({
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
 })
 
-const outfit = FontOutfit({
+const outfit = Outfit({
   subsets: ['latin'],
   variable: '--font-outfit',
 })
