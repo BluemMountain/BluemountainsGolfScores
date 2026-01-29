@@ -1,10 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
     try {
+        const prisma = getPrisma();
         const rounds = await prisma.round.findMany({
             include: {
                 scores: true,
@@ -22,6 +23,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const prisma = getPrisma();
         const body = await request.json();
         const { courseName, date, totalScore, totalPutts, imageUrl, scores } = body;
 

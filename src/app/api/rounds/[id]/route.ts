@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +9,7 @@ export async function DELETE(
 ) {
     const { id } = await params;
     try {
+        const prisma = getPrisma();
         await prisma.round.delete({
             where: { id },
         });
