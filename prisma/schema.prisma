@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Round {
+  id          String      @id @default(cuid())
+  date        DateTime    @default(now())
+  courseName  String
+  totalScore  Int
+  totalPutts  Int
+  imageUrl    String?     // Cloudinary image URL
+  scores      HoleScore[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model HoleScore {
+  id         String   @id @default(cuid())
+  holeNumber Int
+  score      Int
+  putts      Int
+  roundId    String
+  round      Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+}
