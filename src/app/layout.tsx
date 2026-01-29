@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit, Inter } from "next-kit/google"; // Note: standard next/font/google is preferred, using placeholder logic for now
+import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 
 // Google Fonts setup
