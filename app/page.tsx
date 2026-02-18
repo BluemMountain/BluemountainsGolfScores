@@ -1,6 +1,8 @@
 import Hero from "./components/Hero";
 import ScoreDisplay from "./components/ScoreDisplay";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
     return (
         <main className="min-h-screen bg-black">

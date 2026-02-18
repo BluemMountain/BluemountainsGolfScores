@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { PlusCircle, UserPlus, Settings, LayoutDashboard } from "lucide-react";
@@ -72,8 +74,8 @@ function TabButton({ active, onClick, icon: Icon, label }: any) {
         <button
             onClick={onClick}
             className={`flex items-center space-x-2 px-6 py-2 rounded-full transition-all ${active
-                    ? "bg-[#c5a059] text-black font-bold"
-                    : "bg-[#1e3a2b]/30 text-gray-400 hover:text-white"
+                ? "bg-[#c5a059] text-black font-bold"
+                : "bg-[#1e3a2b]/30 text-gray-400 hover:text-white"
                 }`}
         >
             <Icon className="w-4 h-4" />

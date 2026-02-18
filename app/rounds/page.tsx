@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+
 import { getRounds } from "@/lib/actions";
 import { motion } from "framer-motion";
 import { Calendar, MapPin, ChevronLeft, Trophy } from "lucide-react";
