@@ -11,6 +11,65 @@ import Link from "next/link";
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<"members" | "rounds" | "settings">("rounds");
+    const [password, setPassword] = useState("");
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [error, setError] = useState(false);
+
+    const ADMIN_PASSWORD = "0112450313";
+
+    const handleLogin = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (password === ADMIN_PASSWORD) {
+            setIsAuthenticated(true);
+            setError(false);
+        } else {
+            setError(true);
+            setPassword("");
+        }
+    };
+
+    if (!isAuthenticated) {
+        return (
+            <main className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="premium-card max-w-md w-full p-8 text-center"
+                >
+                    <div className="mb-8">
+                        <div className="w-20 h-20 bg-[#c5a059]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#c5a059]/20">
+                            <Settings className="w-10 h-10 text-[#c5a059]" />
+                        </div>
+                        <h1 className="text-2xl font-bold gold-text-gradient">관리자 인증</h1>
+                        <p className="text-gray-400 mt-2">안전한 데이터 관리를 위해 비밀번호를 입력하세요.</p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="비밀번호 입력"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all placeholder:text-gray-600"
+                                autoFocus
+                            />
+                            {error && (
+                                <p className="text-red-500 text-sm mt-2">비밀번호가 일치하지 않습니다.</p>
+                            )}
+                        </div>
+                        <button type="submit" className="btn-gold w-full py-3">
+                            인증하기
+                        </button>
+                    </form>
+
+                    <Link href="/" className="inline-block mt-8 text-sm text-gray-500 hover:text-[#c5a059] transition-colors">
+                        ← 메인 페이지로 돌아가기
+                    </Link>
+                </motion.div>
+            </main>
+        );
+    }
 
     return (
         <main className="min-h-screen bg-black text-white p-4 md:p-8">
