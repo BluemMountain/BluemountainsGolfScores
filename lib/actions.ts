@@ -77,9 +77,9 @@ export async function analyzeScoreImage(base64Image: string) {
             if (!apiKey) return { success: false, error: "GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다." };
 
             const genAI = new GoogleGenerativeAI(apiKey);
-            // 2.0-flash is confirmed to exist on this endpoint (previously gave 429, not 404)
+            // Using 8b model which is highly optimized for fast response and higher RPM
             const model = genAI.getGenerativeModel({
-                model: "gemini-2.0-flash",
+                model: "gemini-1.5-flash-8b",
             });
 
             // Detect MIME type and extract clean base64 data

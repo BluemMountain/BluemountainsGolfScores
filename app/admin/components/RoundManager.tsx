@@ -106,7 +106,7 @@ export default function RoundManager() {
                         const canvas = document.createElement('canvas');
                         let width = img.width;
                         let height = img.height;
-                        const max_size = 1200; // Further reduced for faster upload and stability
+                        const max_size = 1000; // Optimized for faster upload and AI processing
 
                         if (width > height) {
                             if (width > max_size) {
