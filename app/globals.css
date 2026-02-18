@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --color-golf-gold: #c5a059;
+  --color-golf-gold-light: #dfc18d;
+  --color-golf-gold-dark: #8e6d2f;
+  --color-golf-green-deep: #0a140f;
+  --color-golf-green-accent: #1e3a2b;
+
+  --background-image-gold-gradient: linear-gradient(to right, #c5a059, #dfc18d, #8e6d2f);
+}
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 10, 20, 15;
+  --background-end-rgb: 0, 0, 0;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+  min-height: 100vh;
+}
+
+/* Utility Classes */
+.gold-text-gradient {
+  background: linear-gradient(to right, #c5a059, #dfc18d, #8e6d2f);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.premium-card {
+  background-color: rgba(30, 58, 43, 0.3);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(197, 160, 89, 0.2);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.btn-gold {
+  background-color: #c5a059;
+  color: black;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  transition: all 0.3s;
+  box-shadow: 0 10px 15px -3px rgba(197, 160, 89, 0.2);
+}
+
+.btn-gold:hover {
+  background-color: #dfc18d;
+}
+
+.btn-gold:active {
+  transform: scale(0.95);
+}

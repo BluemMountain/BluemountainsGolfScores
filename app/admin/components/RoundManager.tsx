@@ -1,0 +1,265 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { getMembers, createRound, analyzeScoreImage, getRounds, deleteRound } from "@/lib/actions";
+import { motion, AnimatePresence } from "framer-motion";
+import { Calendar as CalendarIcon, MapPin, Save, Loader2, PlusCircle, Camera, Sparkles, Trash2, History } from "lucide-react";
+
+export default function RoundManager() {
+    const [members, setMembers] = useState<any[]>([]);
+    const [rounds, setRounds] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [course, setCourse] = useState("");
+    const [scores, setScores] = useState<Record<string, { memberId?: string, name: string, score: string }>>({});
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    async function loadData() {
+        setLoading(true);
+        const [membersData, roundsData] = await Promise.all([
+            getMembers(),
+            getRounds()
+        ]);
+        setMembers(membersData);
+        setRounds(roundsData);
+
+        // Initialize scores with current members
+        const initialScores: Record<string, { memberId?: string, name: string, score: string }> = {};
+        membersData.forEach((m: any) => {
+            initialScores[m.id] = { memberId: m.id, name: m.name, score: "" };
+        });
+        setScores(initialScores);
+        setLoading(false);
+    }
+
+    async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setAnalyzing(true);
+        try {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64 = reader.result as string;
+                try {
+                    const result = await analyzeScoreImage(base64);
+
+                    if (result.date) setDate(result.date);
+                    if (result.course) setCourse(result.course);
+
+                    const newScores = { ...scores };
+                    result.results?.forEach((item: any) => {
+                        // Find member by name
+                        const member = members.find(m => m.name.includes(item.name) || item.name.includes(m.name));
+                        if (member) {
+                            newScores[member.id] = { memberId: member.id, name: member.name, score: item.score.toString() };
+                        } else {
+                            // Temporary ID for new members from AI
+                            const tempId = `new-${item.name}`;
+                            newScores[tempId] = { name: item.name, score: item.score.toString() };
+                        }
+                    });
+                    setScores(newScores);
+                    alert("AI가 성적표를 분석하여 데이터를 입력했습니다. 신규 인원은 저장 시 자동으로 등록됩니다.");
+                } catch (err: any) {
+                    console.error(err);
+                    alert(err.message || "AI 분석 중 오류가 발생했습니다. 직접 입력해 주세요.");
+                } finally {
+                    setAnalyzing(false);
+                }
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error(error);
+            setAnalyzing(false);
+        }
+    }
+
+    async function handleSaveRound() {
+        if (!course) {
+            alert("코스 이름을 입력해 주세요.");
+            return;
+        }
+
+        const scoresData = Object.values(scores)
+            .filter((s) => s.score !== "")
+            .map((s) => ({
+                memberId: s.memberId,
+                name: s.name,
+                score: parseInt(s.score),
+            }));
+
+        if (scoresData.length === 0) {
+            alert("최소 한 명 이상의 스코어를 입력해 주세요.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await createRound(new Date(date), course, scoresData);
+            alert("라운딩 기록이 저장되었습니다! 신규 회원은 자동으로 등록되었습니다.");
+            setCourse("");
+            // Reset scores but keep original members
+            const resetScores: Record<string, { memberId?: string, name: string, score: string }> = {};
+            members.forEach((m: any) => {
+                resetScores[m.id] = { memberId: m.id, name: m.name, score: "" };
+            });
+            setScores(resetScores);
+            await loadData();
+        } catch (error) {
+            console.error(error);
+            alert("저장 중 오류가 발생했습니다.");
+            setLoading(false);
+        }
+    }
+
+    async function handleDeleteRound(id: string, roundNumber: number) {
+        if (!confirm(`Round ${roundNumber} 기록을 삭제하시겠습니까?`)) return;
+
+        setLoading(true);
+        try {
+            await deleteRound(id);
+            await loadData();
+        } catch (error) {
+            console.error(error);
+            alert("삭제 중 오류가 발생했습니다.");
+            setLoading(false);
+        }
+    }
+
+    return (
+        <div className="space-y-8">
+            <section className="premium-card">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold gold-text-gradient flex items-center">
+                        <PlusCircle className="mr-2 w-5 h-5 text-[#c5a059]" />
+                        라운딩 정보 입력
+                    </h2>
+
+                    <label className="cursor-pointer group">
+                        <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={analyzing} />
+                        <div className={`flex items-center space-x-2 px-4 py-2 rounded-xl border border-[#c5a059]/30 transition-all ${analyzing ? 'opacity-50' : 'hover:bg-[#c5a059]/10'}`}>
+                            {analyzing ? <Loader2 className="w-5 h-5 animate-spin text-[#c5a059]" /> : <Camera className="w-5 h-5 text-[#c5a059]" />}
+                            <span className="text-sm font-medium">AI 사진 분석</span>
+                            <Sparkles className="w-4 h-4 text-[#c5a059] opacity-50 group-hover:opacity-100" />
+                        </div>
+                    </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400 flex items-center space-x-2">
+                            <CalendarIcon className="w-4 h-4" /> <span>날짜</span>
+                        </label>
+                        <input
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400 flex items-center space-x-2">
+                            <MapPin className="w-4 h-4" /> <span>코스 이름</span>
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="예: 블루마운틴 CC"
+                            value={course}
+                            onChange={(e) => setCourse(e.target.value)}
+                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all"
+                        />
+                    </div>
+                </div>
+
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    단체팀 / 개별 멤버 스코어
+                    <span className="ml-3 text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded">총 {Object.keys(scores).length}명</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+                    {Object.entries(scores).map(([id, s]) => (
+                        <div key={id} className={`bg-black/30 border ${s.memberId ? 'border-[#c5a059]/10' : 'border-blue-500/20'} rounded-xl p-3 flex flex-col justify-between space-y-2`}>
+                            <div className="flex justify-between items-start">
+                                <span className={`text-sm font-medium ${s.memberId ? 'text-white' : 'text-blue-400'}`}>
+                                    {s.name}
+                                </span>
+                                {!s.memberId && <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded leading-none">신규</span>}
+                            </div>
+                            <input
+                                type="number"
+                                placeholder="0"
+                                value={s.score}
+                                onChange={(e) => setScores({ ...scores, [id]: { ...s, score: e.target.value } })}
+                                className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-2 py-1.5 text-center text-white focus:border-[#c5a059] outline-none text-lg font-bold"
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                <button
+                    onClick={handleSaveRound}
+                    disabled={loading}
+                    className="btn-gold w-full flex items-center justify-center space-x-2 py-4"
+                >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                        <>
+                            <Save className="w-5 h-5" />
+                            <span>전체 라운딩 기록 저장</span>
+                        </>
+                    )}
+                </button>
+            </section>
+
+            <section className="premium-card">
+                <h2 className="text-xl font-bold gold-text-gradient mb-6 flex items-center">
+                    <History className="mr-2 w-5 h-5 text-[#c5a059]" />
+                    최근 라운딩 기록 관리
+                </h2>
+
+                <div className="space-y-4">
+                    {rounds.length === 0 ? (
+                        <p className="text-center text-gray-500 py-10">등록된 라운딩이 없습니다.</p>
+                    ) : (
+                        rounds.map((round) => (
+                            <div key={round.id} className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex justify-between items-center group">
+                                <div className="flex items-center space-x-4">
+                                    <div className="text-center min-w-[60px]">
+                                        <p className="text-[10px] text-[#c5a059] font-bold uppercase">Round</p>
+                                        <p className="text-xl font-black text-white">{round.roundNumber}</p>
+                                    </div>
+                                    <div className="h-8 w-[1px] bg-[#c5a059]/20"></div>
+                                    <div>
+                                        <div className="flex items-center text-xs text-gray-500 mb-1">
+                                            <CalendarIcon className="w-3 h-3 mr-1" />
+                                            {new Date(round.date).toLocaleDateString()}
+                                        </div>
+                                        <p className="font-bold text-white uppercase tracking-tight">{round.course}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <div className="hidden md:flex -space-x-2">
+                                        {round.scores.slice(0, 4).map((s: any) => (
+                                            <div key={s.id} className="w-8 h-8 rounded-full bg-[#1e3a2b] border border-[#c5a059]/30 flex items-center justify-center text-[10px] font-bold text-[#dfc18d] shadow-lg" title={`${s.member.name}: ${s.score}`}>
+                                                {s.score}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => handleDeleteRound(round.id, round.roundNumber)}
+                                        className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </section>
+        </div>
+    );
+}
