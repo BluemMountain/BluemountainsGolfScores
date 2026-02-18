@@ -308,8 +308,13 @@ export async function getDashboardStats() {
             averageScore: averageScoreResult._avg.score?.toFixed(1) || "0.0",
             bestScore: bestScoreResult._min.score || "-",
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Critical error in getDashboardStats:", error);
-        throw error;
+        return {
+            error: error.message || "Unknown Database Error",
+            totalRounds: 0,
+            averageScore: "0.0",
+            bestScore: "-",
+        };
     }
 }

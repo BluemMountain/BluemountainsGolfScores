@@ -1,12 +1,10 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["bluemountain"]
 }
 
 model Member {
@@ -17,8 +15,6 @@ model Member {
   scores    Score[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@schema("bluemountain")
 }
 
 model Round {
@@ -28,8 +24,6 @@ model Round {
   course      String
   scores      Score[]
   createdAt   DateTime @default(now())
-
-  @@schema("bluemountain")
 }
 
 model Score {
@@ -40,6 +34,4 @@ model Score {
   roundId   String
   round     Round    @relation(fields: [roundId], references: [id])
   createdAt DateTime @default(now())
-
-  @@schema("bluemountain")
 }
