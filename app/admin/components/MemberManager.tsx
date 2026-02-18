@@ -10,8 +10,10 @@ export default function MemberManager() {
     const [loading, setLoading] = useState(true);
     const [name, setName] = useState("");
     const [handicap, setHandicap] = useState("0.0");
+    const [note, setNote] = useState("");
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState("");
+    const [editingNote, setEditingNote] = useState("");
 
     useEffect(() => {
         loadMembers();
@@ -28,9 +30,10 @@ export default function MemberManager() {
         if (!name) return;
 
         setLoading(true);
-        await createMember(name, "MEMBER", parseFloat(handicap));
+        await createMember(name, "MEMBER", parseFloat(handicap), note);
         setName("");
         setHandicap("0.0");
+        setNote("");
         await loadMembers();
     }
 
@@ -52,7 +55,7 @@ export default function MemberManager() {
         if (!editingName.trim()) return;
         setLoading(true);
         try {
-            await updateMember(id, editingName);
+            await updateMember(id, editingName, editingNote);
             setEditingId(null);
             await loadMembers();
         } catch (error) {
@@ -69,29 +72,40 @@ export default function MemberManager() {
                     <UserPlus className="mr-2 w-5 h-5 text-[#c5a059]" />
                     신규 회원 등록
                 </h2>
-                <form onSubmit={handleAddMember} className="flex flex-col md:flex-row gap-4">
-                    <input
-                        type="text"
-                        placeholder="이름"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="flex-1 bg-black/50 border border-[#c5a059]/20 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all"
-                    />
-                    <input
-                        type="number"
-                        step="0.1"
-                        placeholder="핸디캡"
-                        value={handicap}
-                        onChange={(e) => setHandicap(e.target.value)}
-                        className="w-full md:w-32 bg-black/50 border border-[#c5a059]/20 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all"
-                    />
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="btn-gold flex items-center justify-center min-w-[120px]"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "등록하기"}
-                    </button>
+                <form onSubmit={handleAddMember} className="space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <input
+                            type="text"
+                            placeholder="이름"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="flex-1 bg-black/50 border border-[#c5a059]/20 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all"
+                        />
+                        <input
+                            type="number"
+                            step="0.1"
+                            placeholder="핸디캡"
+                            value={handicap}
+                            onChange={(e) => setHandicap(e.target.value)}
+                            className="w-full md:w-32 bg-black/50 border border-[#c5a059]/20 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all"
+                        />
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <input
+                            type="text"
+                            placeholder="비고 (예: 광교점, 평일반 등)"
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            className="flex-1 bg-black/50 border border-[#c5a059]/10 rounded-xl px-4 py-3 text-white focus:border-[#c5a059] outline-none transition-all text-sm"
+                        />
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="btn-gold flex items-center justify-center min-w-[120px]"
+                        >
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "등록하기"}
+                        </button>
+                    </div>
                 </form>
             </section>
 
@@ -105,9 +119,9 @@ export default function MemberManager() {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex justify-between items-center group"
+                                className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex justify-between items-start group"
                             >
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-start space-x-2">
                                     <div className="flex flex-col">
                                         <button
                                             onClick={() => handleDeleteMember(member.id, member.name)}
@@ -120,41 +134,58 @@ export default function MemberManager() {
                                             onClick={() => {
                                                 setEditingId(member.id);
                                                 setEditingName(member.name);
+                                                setEditingNote(member.note || "");
                                             }}
                                             className="p-1.5 text-gray-500 hover:text-[#c5a059] hover:bg-[#c5a059]/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                            title="이름 수정"
+                                            title="회원 수정"
                                         >
                                             <Edit2 className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
                                     <div className="ml-2">
                                         {editingId === member.id ? (
-                                            <div className="flex items-center space-x-2">
+                                            <div className="space-y-2">
                                                 <input
                                                     type="text"
                                                     value={editingName}
                                                     onChange={(e) => setEditingName(e.target.value)}
-                                                    className="bg-black/50 border border-[#c5a059] rounded px-2 py-1 text-white text-sm outline-none w-24"
+                                                    className="bg-black/50 border border-[#c5a059] rounded px-2 py-1 text-white text-sm outline-none w-full"
                                                     autoFocus
                                                 />
-                                                <button onClick={() => handleUpdateMember(member.id)} className="text-green-500 hover:text-green-400">
-                                                    <Check className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => setEditingId(null)} className="text-gray-500 hover:text-gray-400">
-                                                    <X className="w-4 h-4" />
-                                                </button>
+                                                <input
+                                                    type="text"
+                                                    value={editingNote}
+                                                    onChange={(e) => setEditingNote(e.target.value)}
+                                                    className="bg-black/50 border border-[#c5a059]/30 rounded px-2 py-1 text-white text-xs outline-none w-full"
+                                                    placeholder="메모 수정"
+                                                />
+                                                <div className="flex items-center space-x-2 mt-1">
+                                                    <button onClick={() => handleUpdateMember(member.id)} className="text-green-500 hover:text-green-400 flex items-center text-xs">
+                                                        <Check className="w-3 h-3 mr-1" /> 저장
+                                                    </button>
+                                                    <button onClick={() => setEditingId(null)} className="text-gray-500 hover:text-gray-400 flex items-center text-xs">
+                                                        <X className="w-3 h-3 mr-1" /> 취소
+                                                    </button>
+                                                </div>
                                             </div>
                                         ) : (
                                             <>
-                                                <p className="font-semibold text-white">{member.name}</p>
-                                                <p className="text-xs text-gray-500 uppercase tracking-wider">{member.role}</p>
+                                                <div className="flex items-center space-x-2">
+                                                    <p className={`font-semibold ${member.name === '박청산' ? 'text-[#ffcc00]' : 'text-white'}`}>{member.name}</p>
+                                                    <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-wider">{member.role}</span>
+                                                </div>
+                                                {member.note && (
+                                                    <p className="text-xs text-blue-400/80 mt-1 italic">
+                                                        {member.note}
+                                                    </p>
+                                                )}
                                             </>
                                         )}
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm text-[#c5a059]">HDCP</p>
-                                    <p className="font-bold text-white text-lg">{member.handicap.toFixed(1)}</p>
+                                    <p className="text-xs text-[#c5a059] mb-0.5">HDCP</p>
+                                    <p className="font-bold text-white text-lg leading-tight">{member.handicap.toFixed(1)}</p>
                                 </div>
                             </motion.div>
                         ))}

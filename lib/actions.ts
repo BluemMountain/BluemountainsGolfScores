@@ -23,18 +23,18 @@ export async function getMembers() {
     }
 }
 
-export async function createMember(name: string, role: string = "MEMBER", handicap: number = 0.0) {
+export async function createMember(name: string, role: string = "MEMBER", handicap: number = 0.0, note?: string) {
     const member = await prisma.member.create({
-        data: { name, role, handicap },
+        data: { name, role, handicap, note },
     });
     revalidatePath("/admin");
     return member;
 }
 
-export async function updateMember(id: string, name: string) {
+export async function updateMember(id: string, name: string, note?: string) {
     const member = await prisma.member.update({
         where: { id },
-        data: { name },
+        data: { name, note },
     });
 
     await recalculateMemberHandicap(id);
