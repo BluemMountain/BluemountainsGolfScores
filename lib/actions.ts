@@ -72,7 +72,7 @@ export async function analyzeScoreImage(base64Image: string) {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-1.5-flash",
         });
 
         // Detect MIME type and extract clean base64 data
