@@ -17,28 +17,13 @@ export default function ScoreDisplay() {
         async function loadStats() {
             try {
                 const data = await getDashboardStats();
-                if (data.error) {
-                    const errorMessage = data.error.slice(0, 100);
-                    setStats([
-                        { label: "총 라운딩", value: errorMessage, icon: Calendar, color: "#ef4444", href: "/rounds" },
-                        { label: "평균 스코어", value: errorMessage, icon: Trophy, color: "#ef4444" },
-                        { label: "최고 기록", value: errorMessage, icon: Target, color: "#ef4444" },
-                    ]);
-                } else {
-                    setStats([
-                        { label: "총 라운딩", value: data.totalRounds.toString(), icon: Calendar, color: "#c5a059", href: "/rounds" },
-                        { label: "평균 스코어", value: data.averageScore, icon: Trophy, color: "#dfc18d" },
-                        { label: "최고 기록", value: data.bestScore.toString(), icon: Target, color: "#8e6d2f" },
-                    ]);
-                }
-            } catch (error: any) {
-                console.error("Failed to load dashboard stats:", error);
-                const errorMessage = error.message?.slice(0, 15) || "ERR";
                 setStats([
-                    { label: "총 라운딩", value: errorMessage, icon: Calendar, color: "#ef4444", href: "/rounds" },
-                    { label: "평균 스코어", value: errorMessage, icon: Trophy, color: "#ef4444" },
-                    { label: "최고 기록", value: errorMessage, icon: Target, color: "#ef4444" },
+                    { label: "총 라운딩", value: data.totalRounds.toString(), icon: Calendar, color: "#c5a059", href: "/rounds" },
+                    { label: "평균 스코어", value: data.averageScore, icon: Trophy, color: "#dfc18d" },
+                    { label: "최고 기록", value: data.bestScore.toString(), icon: Target, color: "#8e6d2f" },
                 ]);
+            } catch (error) {
+                console.error("Failed to load dashboard stats:", error);
             }
         }
         loadStats();
