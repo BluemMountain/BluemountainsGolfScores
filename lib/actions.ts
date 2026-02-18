@@ -77,9 +77,9 @@ export async function analyzeScoreImage(base64Image: string) {
             if (!apiKey) return { success: false, error: "GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다." };
 
             const genAI = new GoogleGenerativeAI(apiKey);
-            // Switch back to 1.5-flash which often has more stable free tier throughput
+            // 2.0-flash is confirmed to exist on this endpoint (previously gave 429, not 404)
             const model = genAI.getGenerativeModel({
-                model: "gemini-1.5-flash",
+                model: "gemini-2.0-flash",
             });
 
             // Detect MIME type and extract clean base64 data
@@ -149,7 +149,7 @@ export async function analyzeScoreImage(base64Image: string) {
 
             // If it's a quota/rate limit error, wait and retry
             if ((errorMessage.includes("429") || errorMessage.includes("quota")) && attempts < maxAttempts) {
-                const waitTime = attempts * 3000; // 3s, 6s...
+                const waitTime = attempts * 5000; // 5s, 10s...
                 console.warn(`Quota exceeded. Retrying in ${waitTime}ms... (Attempt ${attempts}/${maxAttempts})`);
                 await sleep(waitTime);
                 continue;
