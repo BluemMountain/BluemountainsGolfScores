@@ -68,11 +68,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export async function analyzeScoreImage(base64Image: string) {
     try {
         const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-        if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다.");
+        if (!apiKey) return { success: false, error: "GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다." };
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.0-flash",
         });
 
         // Detect MIME type and extract clean base64 data
@@ -126,29 +126,27 @@ export async function analyzeScoreImage(base64Image: string) {
         console.log("AI Raw Response:", text);
 
         try {
-            // JSON 추출 강화: 마크다운 코드 블록 제거 및 순수 JSON 추출
             const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) throw new Error("JSON 형식을 찾을 수 없습니다.");
+            if (!jsonMatch) return { success: false, error: "AI 응답에서 유효한 데이터를 찾지 못했습니다." };
 
             const parsed = JSON.parse(jsonMatch[0]);
             console.log("AI Parsed Result:", parsed);
-            return parsed;
+            return { success: true, data: parsed };
         } catch (e) {
-            console.error("AI Response Parsing Failed. Raw text:", text);
-            throw new Error("AI가 유효한 데이터를 생성하지 못했습니다. (Parsing Error)");
+            console.error("AI Response Parsing Failed:", text);
+            return { success: false, error: "AI가 보낸 데이터를 읽는 중 오류가 발생했습니다." };
         }
     } catch (error: any) {
-        console.error("Critical AI Analysis Error Details:", error);
-
+        console.error("Critical AI Analysis Error:", error);
         let errorMessage = error.message || "이미지 분석 중 알 수 없는 오류가 발생했습니다.";
 
-        if (errorMessage.includes("404")) {
-            errorMessage = "Gemini 모델을 찾을 수 없습니다. API 키 설정을 확인하세요.";
-        } else if (errorMessage.includes("429") || errorMessage.includes("quota")) {
+        if (errorMessage.includes("429") || errorMessage.includes("quota")) {
             errorMessage = "API 할당량 초과입니다. 잠시 후 다시 시도하세요.";
+        } else if (errorMessage.includes("limit") || errorMessage.includes("too large")) {
+            errorMessage = "이미지 용량이 너무 큽니다. 사진을 조금 더 작게 찍거나 리사이징이 필요합니다.";
         }
 
-        throw new Error(errorMessage);
+        return { success: false, error: errorMessage };
     }
 }
 

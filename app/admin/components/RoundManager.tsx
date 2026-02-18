@@ -96,14 +96,15 @@ export default function RoundManager() {
                 const originalBase64 = reader.result as string;
 
                 // Client-side resizing to stay under Vercel payload limits (4.5MB)
-                const base64 = await new Promise<string>((resolve) => {
+                const base64 = await new Promise<string>((resolve, reject) => {
                     const img = new Image();
                     img.src = originalBase64;
+                    img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
                         let width = img.width;
                         let height = img.height;
-                        const max_size = 1600;
+                        const max_size = 1200; // Further reduced for faster upload and stability
 
                         if (width > height) {
                             if (width > max_size) {
@@ -120,12 +121,21 @@ export default function RoundManager() {
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx?.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        console.log(`Original size: ${originalBase64.length}, Optimized size: ${dataUrl.length}`);
+                        resolve(dataUrl);
                     };
                 });
 
                 try {
-                    const result = await analyzeScoreImage(base64);
+                    const response = await analyzeScoreImage(base64);
+
+                    if (!response.success) {
+                        alert(`AI 분석 오류: ${response.error}`);
+                        return;
+                    }
+
+                    const result = response.data;
 
                     if (result.date) setDate(result.date);
                     if (result.course) setCourse(result.course);
