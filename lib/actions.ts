@@ -7,8 +7,15 @@ import { revalidatePath } from "next/cache";
 
 export async function getMembers() {
     try {
-        return await prisma.member.findMany({
+        const members = await prisma.member.findMany({
             orderBy: { name: "asc" },
+        });
+
+        // Ensure "박청산" is always at the top
+        return members.sort((a, b) => {
+            if (a.name === "박청산") return -1;
+            if (b.name === "박청산") return 1;
+            return a.name.localeCompare(b.name, 'ko');
         });
     } catch (error) {
         console.error("Error in getMembers:", error);
@@ -46,11 +53,6 @@ export async function recalculateMemberHandicap(memberId: string) {
     if (scores.length === 0) return;
 
     const average = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
-
-    // Using (Average Score - 72) as a simple handicap calculation, 
-    // or just store the average if that's the convention used.
-    // Based on the UI showing 89.8 as average, let's stick to a simple average or average-72.
-    // Let's go with (Average - 72) but ensure it's not negative if needed.
     const handicap = Math.max(0, average - 72);
 
     await prisma.member.update({
@@ -68,13 +70,10 @@ export async function analyzeScoreImage(base64Image: string) {
         const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
         if (!apiKey) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다.");
 
-        // 사용 가능한 최신 모델인 gemini-2.5-flash (테스트로 검증됨)
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
         });
-
-        // v1beta가 아닌 안정적인 환경을 위해 시도 (모델명이 이미 확인됨)
 
         // Detect MIME type and extract clean base64 data
         let mimeType = "image/jpeg";
@@ -88,8 +87,6 @@ export async function analyzeScoreImage(base64Image: string) {
             }
         }
 
-        console.log(`Starting AI Analysis: MIME=${mimeType}, DataLength=${data.length}`);
-
         const prompt = `
         이 이미지는 골프 라운딩 성적표(스코어카드) 또는 단체팀 스코어보드입니다. 
         이미지에 보이는 모든 참가자의 이름과 점수를 추출해주세요.
@@ -99,12 +96,18 @@ export async function analyzeScoreImage(base64Image: string) {
           "date": "YYYY-MM-DD",
           "course": "골프장 이름",
           "results": [
-            { "name": "이름", "score": 점수(숫자) }
+            { 
+              "name": "이름", 
+              "score": 전체점수(숫자),
+              "frontScore": 전반(Out)점수(숫자, 없을시 null),
+              "backScore": 후반(In)점수(숫자, 없을시 null)
+            }
           ]
         }
         
         - 날짜가 이미지에 없다면 오늘 날짜인 "${new Date().toISOString().split('T')[0]}"를 기본값으로 하세요.
-        - 점수는 '총계', 'Total', '합계', '스코어' 등에 해당하는 숫자를 추출하세요.
+        - 점수는 '총계', 'Total', '합계', '스코어' 등에 해당하는 숫자를 추출해 "score"에 넣으세요.
+        - 만약 전반(Out/1~9홀)과 후반(In/10~18홀) 점수가 각각 보인다면 "frontScore"와 "backScore"에 각각 넣으세요.
         - 단체팀 리스트인 경우, 리스트에 있는 모든 사람 정보를 포함하세요.
         `;
 
@@ -172,7 +175,7 @@ export async function getRounds() {
 export async function createRound(
     date: Date,
     course: string,
-    scoresData: { memberId?: string; name?: string; score: number }[]
+    scoresData: { memberId?: string; name?: string; score: number; frontScore?: number | null; backScore?: number | null }[]
 ) {
     // Process scores and create/find members if needed
     const finalizedScores = await Promise.all(
@@ -196,6 +199,8 @@ export async function createRound(
             return {
                 memberId: memberId as string,
                 score: item.score,
+                frontScore: item.frontScore,
+                backScore: item.backScore,
             };
         })
     );

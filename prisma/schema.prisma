@@ -27,11 +27,13 @@ model Round {
 }
 
 model Score {
-  id        String   @id @default(cuid())
-  score     Int
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id])
-  roundId   String
-  round     Round    @relation(fields: [roundId], references: [id])
-  createdAt DateTime @default(now())
+    id         String   @id @default(cuid())
+    memberId   String
+    member     Member   @relation(fields: [memberId], references: [id])
+    roundId    String
+    round      Round    @relation(fields: [roundId], references: [id])
+    score      Int
+    frontScore Int?
+    backScore  Int?
+    createdAt  DateTime @default(now())
 }

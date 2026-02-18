@@ -12,7 +12,8 @@ export default function RoundManager() {
     const [analyzing, setAnalyzing] = useState(false);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [course, setCourse] = useState("");
-    const [scores, setScores] = useState<Record<string, { memberId?: string, name: string, score: string }>>({});
+    const [scores, setScores] = useState<Record<string, { memberId?: string, name: string, score: string, frontScore?: number | null, backScore?: number | null }>>({});
+    const [selectedRound, setSelectedRound] = useState<any>(null);
 
     useEffect(() => {
         loadData();
@@ -27,10 +28,10 @@ export default function RoundManager() {
         setMembers(membersData);
         setRounds(roundsData);
 
-        // Initialize scores with current members
-        const initialScores: Record<string, { memberId?: string, name: string, score: string }> = {};
+        // Initialize scores with current members (sorted by getMembers)
+        const initialScores: Record<string, any> = {};
         membersData.forEach((m: any) => {
-            initialScores[m.id] = { memberId: m.id, name: m.name, score: "" };
+            initialScores[m.id] = { memberId: m.id, name: m.name, score: "", frontScore: null, backScore: null };
         });
         setScores(initialScores);
         setLoading(false);
@@ -56,11 +57,21 @@ export default function RoundManager() {
                         // Find member by name
                         const member = members.find(m => m.name.includes(item.name) || item.name.includes(m.name));
                         if (member) {
-                            newScores[member.id] = { memberId: member.id, name: member.name, score: item.score.toString() };
+                            newScores[member.id] = {
+                                memberId: member.id,
+                                name: member.name,
+                                score: item.score.toString(),
+                                frontScore: item.frontScore,
+                                backScore: item.backScore
+                            };
                         } else {
-                            // Temporary ID for new members from AI
                             const tempId = `new-${item.name}`;
-                            newScores[tempId] = { name: item.name, score: item.score.toString() };
+                            newScores[tempId] = {
+                                name: item.name,
+                                score: item.score.toString(),
+                                frontScore: item.frontScore,
+                                backScore: item.backScore
+                            };
                         }
                     });
                     setScores(newScores);
@@ -91,6 +102,8 @@ export default function RoundManager() {
                 memberId: s.memberId,
                 name: s.name,
                 score: parseInt(s.score),
+                frontScore: s.frontScore || null,
+                backScore: s.backScore || null,
             }));
 
         if (scoresData.length === 0) {
@@ -103,10 +116,9 @@ export default function RoundManager() {
             await createRound(new Date(date), course, scoresData);
             alert("라운딩 기록이 저장되었습니다! 신규 회원은 자동으로 등록되었습니다.");
             setCourse("");
-            // Reset scores but keep original members
-            const resetScores: Record<string, { memberId?: string, name: string, score: string }> = {};
+            const resetScores: Record<string, any> = {};
             members.forEach((m: any) => {
-                resetScores[m.id] = { memberId: m.id, name: m.name, score: "" };
+                resetScores[m.id] = { memberId: m.id, name: m.name, score: "", frontScore: null, backScore: null };
             });
             setScores(resetScores);
             await loadData();
@@ -117,7 +129,8 @@ export default function RoundManager() {
         }
     }
 
-    async function handleDeleteRound(id: string, roundNumber: number) {
+    async function handleDeleteRound(id: string, roundNumber: number, e: React.MouseEvent) {
+        e.stopPropagation();
         if (!confirm(`Round ${roundNumber} 기록을 삭제하시겠습니까?`)) return;
 
         setLoading(true);
@@ -181,23 +194,46 @@ export default function RoundManager() {
                     <span className="ml-3 text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded">총 {Object.keys(scores).length}명</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-                    {Object.entries(scores).map(([id, s]) => (
-                        <div key={id} className={`bg-black/30 border ${s.memberId ? 'border-[#c5a059]/10' : 'border-blue-500/20'} rounded-xl p-3 flex flex-col justify-between space-y-2`}>
-                            <div className="flex justify-between items-start">
-                                <span className={`text-sm font-medium ${s.memberId ? 'text-white' : 'text-blue-400'}`}>
-                                    {s.name}
-                                </span>
-                                {!s.memberId && <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded leading-none">신규</span>}
+                    {/* Iterate through members to ensure sorting priority (Cheong-san first) */}
+                    {members.map((member) => {
+                        const s = scores[member.id] || { name: member.name, score: "" };
+                        return (
+                            <div key={member.id} className="bg-black/30 border border-[#c5a059]/10 rounded-xl p-3 flex flex-col justify-between space-y-2">
+                                <div className="flex justify-between items-start">
+                                    <span className={`text-sm font-medium ${member.name === '박청산' ? 'text-[#ffcc00] font-bold' : 'text-white'}`}>
+                                        {member.name}
+                                    </span>
+                                </div>
+                                <input
+                                    type="number"
+                                    placeholder="0"
+                                    value={s.score}
+                                    onChange={(e) => setScores({ ...scores, [member.id]: { ...s, score: e.target.value } })}
+                                    className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-2 py-1.5 text-center text-white focus:border-[#c5a059] outline-none text-lg font-bold"
+                                />
                             </div>
-                            <input
-                                type="number"
-                                placeholder="0"
-                                value={s.score}
-                                onChange={(e) => setScores({ ...scores, [id]: { ...s, score: e.target.value } })}
-                                className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-2 py-1.5 text-center text-white focus:border-[#c5a059] outline-none text-lg font-bold"
-                            />
-                        </div>
-                    ))}
+                        );
+                    })}
+                    {/* New members from AI analysis that aren't in members list yet */}
+                    {Object.entries(scores)
+                        .filter(([id, s]) => !s.memberId)
+                        .map(([id, s]) => (
+                            <div key={id} className="bg-black/30 border border-blue-500/20 rounded-xl p-3 flex flex-col justify-between space-y-2">
+                                <div className="flex justify-between items-start">
+                                    <span className="text-sm font-medium text-blue-400">
+                                        {s.name}
+                                    </span>
+                                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded leading-none">신규</span>
+                                </div>
+                                <input
+                                    type="number"
+                                    placeholder="0"
+                                    value={s.score}
+                                    onChange={(e) => setScores({ ...scores, [id]: { ...s, score: e.target.value } })}
+                                    className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-2 py-1.5 text-center text-white focus:border-[#c5a059] outline-none text-lg font-bold"
+                                />
+                            </div>
+                        ))}
                 </div>
 
                 <button
@@ -225,7 +261,11 @@ export default function RoundManager() {
                         <p className="text-center text-gray-500 py-10">등록된 라운딩이 없습니다.</p>
                     ) : (
                         rounds.map((round) => (
-                            <div key={round.id} className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex justify-between items-center group">
+                            <div
+                                key={round.id}
+                                onClick={() => setSelectedRound(round)}
+                                className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex justify-between items-center group cursor-pointer hover:bg-[#c5a059]/5 transition-all"
+                            >
                                 <div className="flex items-center space-x-4">
                                     <div className="text-center min-w-[60px]">
                                         <p className="text-[10px] text-[#c5a059] font-bold uppercase">Round</p>
@@ -249,7 +289,7 @@ export default function RoundManager() {
                                         ))}
                                     </div>
                                     <button
-                                        onClick={() => handleDeleteRound(round.id, round.roundNumber)}
+                                        onClick={(e) => handleDeleteRound(round.id, round.roundNumber, e)}
                                         className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                     >
                                         <Trash2 className="w-5 h-5" />
@@ -260,6 +300,82 @@ export default function RoundManager() {
                     )}
                 </div>
             </section>
+
+            {/* Detailed View Modal */}
+            <AnimatePresence>
+                {selectedRound && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="premium-card max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="text-2xl font-bold gold-text-gradient">Round {selectedRound.roundNumber} 상세 기록</h3>
+                                    <p className="text-gray-400 text-sm flex items-center mt-1">
+                                        <MapPin className="w-3 h-3 mr-1" /> {selectedRound.course} | <CalendarIcon className="w-3 h-3 mx-1" /> {new Date(selectedRound.date).toLocaleDateString()}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedRound(null)}
+                                    className="p-2 text-gray-400 hover:text-white"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="overflow-hidden border border-[#c5a059]/20 rounded-xl">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-[#c5a059]/10 text-[#c5a059] font-bold uppercase tracking-wider uppercase">
+                                        <tr>
+                                            <th className="px-4 py-3">이름</th>
+                                            <th className="px-4 py-3 text-center">전반</th>
+                                            <th className="px-4 py-3 text-center">후반</th>
+                                            <th className="px-4 py-3 text-center">전체</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#c5a059]/10">
+                                        {selectedRound.scores
+                                            .sort((a: any, b: any) => {
+                                                if (a.member.name === '박청산') return -1;
+                                                if (b.member.name === '박청산') return 1;
+                                                return 0;
+                                            })
+                                            .map((s: any) => (
+                                                <tr key={s.id} className="hover:bg-white/5 transition-colors">
+                                                    <td className={`px-4 py-3 font-medium ${s.member.name === '박청산' ? 'text-[#ffcc00]' : 'text-white'}`}>
+                                                        {s.member.name}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center text-gray-400">
+                                                        {s.frontScore || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center text-gray-400">
+                                                        {s.backScore || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center font-bold text-[#c5a059]">
+                                                        {s.score}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <button
+                                onClick={() => setSelectedRound(null)}
+                                className="btn-gold w-full mt-8 py-3"
+                            >
+                                닫기
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
+
