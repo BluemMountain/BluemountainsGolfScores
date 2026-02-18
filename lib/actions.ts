@@ -6,9 +6,14 @@ import { revalidatePath } from "next/cache";
 /* --- Member Actions --- */
 
 export async function getMembers() {
-    return await prisma.member.findMany({
-        orderBy: { name: "asc" },
-    });
+    try {
+        return await prisma.member.findMany({
+            orderBy: { name: "asc" },
+        });
+    } catch (error) {
+        console.error("Error in getMembers:", error);
+        throw error;
+    }
 }
 
 export async function createMember(name: string, role: string = "MEMBER", handicap: number = 0.0) {
@@ -147,16 +152,21 @@ export async function analyzeScoreImage(base64Image: string) {
 /* --- Round Actions --- */
 
 export async function getRounds() {
-    return await prisma.round.findMany({
-        include: {
-            scores: {
-                include: {
-                    member: true,
+    try {
+        return await prisma.round.findMany({
+            include: {
+                scores: {
+                    include: {
+                        member: true,
+                    },
                 },
             },
-        },
-        orderBy: { date: "desc" },
-    });
+            orderBy: { date: "desc" },
+        });
+    } catch (error) {
+        console.error("Error in getRounds:", error);
+        throw error;
+    }
 }
 
 export async function createRound(
@@ -278,22 +288,28 @@ export async function deleteMember(memberId: string) {
 /* --- Stats Actions --- */
 
 export async function getDashboardStats() {
-    const totalRounds = await prisma.round.count();
-    const averageScoreResult = await prisma.score.aggregate({
-        _avg: {
-            score: true,
-        },
-    });
+    try {
+        console.log("Fetching dashboard stats...");
+        const totalRounds = await prisma.round.count();
+        const averageScoreResult = await prisma.score.aggregate({
+            _avg: {
+                score: true,
+            },
+        });
 
-    const bestScoreResult = await prisma.score.aggregate({
-        _min: {
-            score: true,
-        },
-    });
+        const bestScoreResult = await prisma.score.aggregate({
+            _min: {
+                score: true,
+            },
+        });
 
-    return {
-        totalRounds,
-        averageScore: averageScoreResult._avg.score?.toFixed(1) || "0.0",
-        bestScore: bestScoreResult._min.score || "-",
-    };
+        return {
+            totalRounds,
+            averageScore: averageScoreResult._avg.score?.toFixed(1) || "0.0",
+            bestScore: bestScoreResult._min.score || "-",
+        };
+    } catch (error) {
+        console.error("Critical error in getDashboardStats:", error);
+        throw error;
+    }
 }

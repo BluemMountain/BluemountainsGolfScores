@@ -15,12 +15,21 @@ export default function ScoreDisplay() {
 
     useEffect(() => {
         async function loadStats() {
-            const data = await getDashboardStats();
-            setStats([
-                { label: "총 라운딩", value: data.totalRounds.toString(), icon: Calendar, color: "#c5a059", href: "/rounds" },
-                { label: "평균 스코어", value: data.averageScore, icon: Trophy, color: "#dfc18d" },
-                { label: "최고 기록", value: data.bestScore.toString(), icon: Target, color: "#8e6d2f" },
-            ]);
+            try {
+                const data = await getDashboardStats();
+                setStats([
+                    { label: "총 라운딩", value: data.totalRounds.toString(), icon: Calendar, color: "#c5a059", href: "/rounds" },
+                    { label: "평균 스코어", value: data.averageScore, icon: Trophy, color: "#dfc18d" },
+                    { label: "최고 기록", value: data.bestScore.toString(), icon: Target, color: "#8e6d2f" },
+                ]);
+            } catch (error) {
+                console.error("Failed to load dashboard stats:", error);
+                setStats([
+                    { label: "총 라운딩", value: "ERR", icon: Calendar, color: "#ef4444", href: "/rounds" },
+                    { label: "평균 스코어", value: "ERR", icon: Trophy, color: "#ef4444" },
+                    { label: "최고 기록", value: "ERR", icon: Target, color: "#ef4444" },
+                ]);
+            }
         }
         loadStats();
     }, []);
