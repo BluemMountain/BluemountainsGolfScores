@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /* --- Member Actions --- */
 
@@ -63,111 +64,103 @@ export async function recalculateMemberHandicap(memberId: string) {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 /* --- AI Image Analysis --- */
 
 export async function analyzeScoreImage(base64Image: string) {
-    let attempts = 0;
-    const maxAttempts = 3;
+    // Model fallback list to handle both existence (404) and quota (429) issues
+    const modelNames = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+    const maxAttemptsPerModel = 2;
 
-    while (attempts < maxAttempts) {
-        try {
-            const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-            if (!apiKey) return { success: false, error: "GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다." };
-
-            const genAI = new GoogleGenerativeAI(apiKey);
-            // Using 8b model which is highly optimized for fast response and higher RPM
-            const model = genAI.getGenerativeModel({
-                model: "gemini-1.5-flash-8b",
-            });
-
-            // Detect MIME type and extract clean base64 data
-            let mimeType = "image/jpeg";
-            let data = base64Image;
-
-            if (base64Image.startsWith("data:")) {
-                const match = base64Image.match(/^data:([^;]+);base64,(.+)$/);
-                if (match) {
-                    mimeType = match[1];
-                    data = match[2];
-                }
-            }
-
-            const prompt = `
-        이 이미지는 골프 라운딩 성적표(스코어카드) 또는 단체팀 스코어보드입니다. 
-        이미지에 보이는 모든 참가자의 이름과 점수를 추출해주세요.
-        다른 설명은 생략하고 오직 JSON 데이터만 응답하세요.
-        
-        {
-          "date": "YYYY-MM-DD",
-          "course": "골프장 이름",
-          "results": [
-            { 
-              "name": "이름", 
-              "score": 전체점수(숫자),
-              "frontScore": 전반(Out)점수(숫자, 없을시 null),
-              "backScore": 후반(In)점수(숫자, 없을시 null)
-            }
-          ]
-        }
-        
-        - 날짜가 이미지에 없다면 오늘 날짜인 "${new Date().toISOString().split('T')[0]}"를 기본값으로 하세요.
-        - 점수는 '총계', 'Total', '합계', '스코어' 등에 해당하는 숫자를 추출해 "score"에 넣으세요.
-        - 만약 전반(Out/1~9홀)과 후반(In/10~18홀) 점수가 각각 보인다면 "frontScore"와 "backScore"에 각각 넣으세요.
-        - 단체팀 리스트인 경우, 리스트에 있는 모든 사람 정보를 포함하세요.
-        `;
-
-            const result = await model.generateContent([
-                {
-                    inlineData: {
-                        data,
-                        mimeType,
-                    },
-                },
-                { text: prompt },
-            ]);
-
-            const response = await result.response;
-            const text = response.text();
-            console.log("AI Raw Response:", text);
-
+    for (const modelName of modelNames) {
+        let attempts = 0;
+        while (attempts < maxAttemptsPerModel) {
             try {
+                const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+                if (!apiKey) return { success: false, error: "GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다." };
+
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: modelName });
+
+                // Detect MIME type and extract clean base64 data
+                let mimeType = "image/jpeg";
+                let data = base64Image;
+
+                if (base64Image.startsWith("data:")) {
+                    const match = base64Image.match(/^data:([^;]+);base64,(.+)$/);
+                    if (match) {
+                        mimeType = match[1];
+                        data = match[2];
+                    }
+                }
+
+                const prompt = `
+                이 이미지는 골프 라운딩 스코어카드입니다. 
+                이미지에 보이는 참가자의 이름과 점수를 추출해주세요.
+                다른 설명은 생략하고 오직 JSON 데이터만 응답하세요.
+                
+                {
+                  "date": "YYYY-MM-DD",
+                  "course": "골프장 이름",
+                  "results": [
+                    { 
+                      "name": "이름", 
+                      "score": 전체점수(숫자),
+                      "frontScore": 전반(Out)점수(숫자, 없을시 null),
+                      "backScore": 후반(In)점수(숫자, 없을시 null)
+                    }
+                  ]
+                }
+                
+                - 날짜가 이미지에 없다면 오늘 날짜인 "${new Date().toISOString().split('T')[0]}"를 기본값으로 하세요.
+                - 점수는 '총계', 'Total', '합계', '스코어' 등에 해당하는 숫자를 추출해 "score"에 넣으세요.
+                - 전반/후반 점수가 보인다면 "frontScore"와 "backScore"에 각각 넣으세요.
+                `;
+
+                const result = await model.generateContent([
+                    {
+                        inlineData: {
+                            data,
+                            mimeType,
+                        },
+                    },
+                    { text: prompt },
+                ]);
+
+                const response = await result.response;
+                const text = response.text();
+
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) return { success: false, error: "AI 응답에서 유효한 데이터를 찾지 못했습니다." };
+                if (!jsonMatch) {
+                    throw new Error("FORMAT_ERROR");
+                }
 
                 const parsed = JSON.parse(jsonMatch[0]);
-                console.log("AI Parsed Result:", parsed);
+                console.log(`AI Success with ${modelName}:`, parsed);
                 return { success: true, data: parsed };
-            } catch (e) {
-                console.error("AI Response Parsing Failed:", text);
-                return { success: false, error: "AI가 보낸 데이터를 읽는 중 오류가 발생했습니다." };
+
+            } catch (error: any) {
+                attempts++;
+                const errorMessage = error.message || "";
+
+                // If quota error, wait and retry THIS model
+                if ((errorMessage.includes("429") || errorMessage.includes("quota")) && attempts < maxAttemptsPerModel) {
+                    const waitTime = attempts * 5000;
+                    console.log(`Quota limit for ${modelName}. Waiting ${waitTime}ms...`);
+                    await sleep(waitTime);
+                    continue;
+                }
+
+                // If 404 or exhausted 429 retries, try NEXT model
+                console.warn(`Model ${modelName} failed, attempting next model...`, errorMessage);
+                break;
             }
-        } catch (error: any) {
-            attempts++;
-            const errorMessage = error.message || "";
-
-            // If it's a quota/rate limit error, wait and retry
-            if ((errorMessage.includes("429") || errorMessage.includes("quota")) && attempts < maxAttempts) {
-                const waitTime = attempts * 5000; // 5s, 10s...
-                console.warn(`Quota exceeded. Retrying in ${waitTime}ms... (Attempt ${attempts}/${maxAttempts})`);
-                await sleep(waitTime);
-                continue;
-            }
-
-            console.error("Critical AI Analysis Error:", error);
-            let userMessage = errorMessage || "이미지 분석 중 알 수 없는 오류가 발생했습니다.";
-
-            if (userMessage.includes("429") || userMessage.includes("quota")) {
-                userMessage = "AI 사용량이 일시적으로 너무 많습니다. 1분만 기다렸다가 다시 시도해 주세요.";
-            } else if (userMessage.includes("limit") || userMessage.includes("too large")) {
-                userMessage = "이미지 용량이 너무 큽니다. 사진을 재촬영하거나 수동으로 입력해 주세요.";
-            }
-
-            return { success: false, error: userMessage };
         }
     }
-    return { success: false, error: "서버 점검 중입니다. 잠시 후 다시 시도해 주세요." };
+
+    return {
+        success: false,
+        error: "구글 AI 서버가 매우 혼잡합니다. 잠시 후 다시 시도하시거나 직접 입력을 부탁드립니다. (사진의 점수는 정상입니다!)"
+    };
 }
 
 /* --- Round Actions --- */
