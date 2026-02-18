@@ -67,8 +67,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /* --- AI Image Analysis --- */
 
 export async function analyzeScoreImage(base64Image: string) {
-    // Model fallback list to handle both existence (404) and quota (429) issues
-    const modelNames = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+    // Priority to gemini-1.5-flash as requested by the user
+    const modelNames = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
     const maxAttemptsPerModel = 2;
 
     for (const modelName of modelNames) {
