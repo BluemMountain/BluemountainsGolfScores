@@ -289,7 +289,11 @@ export async function deleteMember(memberId: string) {
 
 export async function getDashboardStats() {
     try {
-        console.log("Fetching dashboard stats...");
+        const url = process.env.DATABASE_URL || "";
+        const urlStatus = url ? `Len:${url.length} | Schema:${url.includes('schema=bluemountain')}` : "MISSING";
+
+        console.log("Diagnostic check starting...");
+
         const totalRounds = await prisma.round.count();
         const averageScoreResult = await prisma.score.aggregate({
             _avg: {
@@ -310,8 +314,12 @@ export async function getDashboardStats() {
         };
     } catch (error: any) {
         console.error("Critical error in getDashboardStats:", error);
+
+        // Detailed diagnostic string
+        const diagInfo = `DB Err: ${error.message || 'No msg'} | Code: ${error.code || 'No code'} | Env: ${process.env.DATABASE_URL ? 'YES' : 'NO'}`;
+
         return {
-            error: error.message || "Unknown Database Error",
+            error: diagInfo.slice(0, 100),
             totalRounds: 0,
             averageScore: "0.0",
             bestScore: "-",

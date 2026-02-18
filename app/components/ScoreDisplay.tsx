@@ -18,7 +18,7 @@ export default function ScoreDisplay() {
             try {
                 const data = await getDashboardStats();
                 if (data.error) {
-                    const errorMessage = data.error.slice(0, 20);
+                    const errorMessage = data.error.slice(0, 100);
                     setStats([
                         { label: "총 라운딩", value: errorMessage, icon: Calendar, color: "#ef4444", href: "/rounds" },
                         { label: "평균 스코어", value: errorMessage, icon: Trophy, color: "#ef4444" },
