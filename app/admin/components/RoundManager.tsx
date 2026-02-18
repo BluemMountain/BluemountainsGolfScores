@@ -10,6 +10,7 @@ export default function RoundManager() {
     const [rounds, setRounds] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
+    const [analyzingStatus, setAnalyzingStatus] = useState("");
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [course, setCourse] = useState("");
     const [scores, setScores] = useState<Record<string, { memberId?: string, name: string, score: string, frontScore?: number | null, backScore?: number | null }>>({});
@@ -90,6 +91,7 @@ export default function RoundManager() {
         if (!file) return;
 
         setAnalyzing(true);
+        setAnalyzingStatus("사진 압축 중...");
         try {
             const reader = new FileReader();
             reader.onloadend = async () => {
@@ -127,11 +129,14 @@ export default function RoundManager() {
                     };
                 });
 
+                setAnalyzingStatus("AI 데이터 분석 중...");
                 try {
                     const response = await analyzeScoreImage(base64);
 
                     if (!response.success) {
                         alert(`AI 분석 오류: ${response.error}`);
+                        setAnalyzing(false);
+                        setAnalyzingStatus("");
                         return;
                     }
 
@@ -169,12 +174,14 @@ export default function RoundManager() {
                     alert(err.message || "AI 분석 중 오류가 발생했습니다. 직접 입력해 주세요.");
                 } finally {
                     setAnalyzing(false);
+                    setAnalyzingStatus("");
                 }
             };
             reader.readAsDataURL(file);
         } catch (error) {
             console.error(error);
             setAnalyzing(false);
+            setAnalyzingStatus("");
         }
     }
 
@@ -245,8 +252,10 @@ export default function RoundManager() {
                         <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={analyzing} />
                         <div className={`flex items-center space-x-2 px-4 py-2 rounded-xl border border-[#c5a059]/30 transition-all ${analyzing ? 'opacity-50' : 'hover:bg-[#c5a059]/10'}`}>
                             {analyzing ? <Loader2 className="w-5 h-5 animate-spin text-[#c5a059]" /> : <Camera className="w-5 h-5 text-[#c5a059]" />}
-                            <span className="text-sm font-medium">AI 사진 분석</span>
-                            <Sparkles className="w-4 h-4 text-[#c5a059] opacity-50 group-hover:opacity-100" />
+                            <span className="text-sm font-medium">
+                                {analyzing ? (analyzingStatus || "AI 분석 중...") : "AI 사진 분석"}
+                            </span>
+                            {!analyzing && <Sparkles className="w-4 h-4 text-[#c5a059] opacity-50 group-hover:opacity-100" />}
                         </div>
                     </label>
                 </div>
