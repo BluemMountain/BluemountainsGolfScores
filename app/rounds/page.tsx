@@ -80,11 +80,7 @@ export default function RoundsPage() {
 
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                         {round.scores
-                                            .sort((a: any, b: any) => {
-                                                if (a.member.name === "박청산") return -1;
-                                                if (b.member.name === "박청산") return 1;
-                                                return 0;
-                                            })
+                                            .sort((a: any, b: any) => a.score - b.score) // Lowest score first
                                             .map((score: any) => (
                                                 <div key={score.id} className={`bg-white/5 rounded-lg p-3 border transition-colors ${score.member.name === '박청산' ? 'border-[#c5a059]/30 bg-[#c5a059]/5' : 'border-white/5 hover:border-[#c5a059]/20'}`}>
                                                     <p className={`text-xs mb-1 ${score.member.name === '박청산' ? 'text-[#c5a059] font-bold' : 'text-gray-500'}`}>{score.member.name}</p>

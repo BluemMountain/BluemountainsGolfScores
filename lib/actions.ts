@@ -164,10 +164,53 @@ export async function getRounds() {
                     },
                 },
             },
-            orderBy: { date: "desc" },
+            orderBy: { roundNumber: "desc" },
         });
     } catch (error) {
         console.error("Error in getRounds:", error);
+        throw error;
+    }
+}
+
+export async function updateRoundInfo(
+    roundId: string,
+    date: Date,
+    course: string,
+    scores: { scoreId: string; score: number; frontScore?: number | null; backScore?: number | null }[]
+) {
+    try {
+        // 1. Update Round metadata
+        await prisma.round.update({
+            where: { id: roundId },
+            data: { date, course }
+        });
+
+        // 2. Update individual scores and identify affected members
+        const affectedMemberIds = new Set<string>();
+
+        for (const s of scores) {
+            const updatedScore = await prisma.score.update({
+                where: { id: s.scoreId },
+                data: {
+                    score: s.score,
+                    frontScore: s.frontScore,
+                    backScore: s.backScore
+                },
+                select: { memberId: true }
+            });
+            affectedMemberIds.add(updatedScore.memberId);
+        }
+
+        // 3. Recalculate handicaps for all affected members
+        for (const memberId of affectedMemberIds) {
+            await recalculateMemberHandicap(memberId);
+        }
+
+        revalidatePath("/");
+        revalidatePath("/rounds");
+        revalidatePath("/admin");
+    } catch (error) {
+        console.error("Error in updateRoundInfo:", error);
         throw error;
     }
 }

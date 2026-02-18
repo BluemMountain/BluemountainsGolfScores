@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getMembers, createRound, analyzeScoreImage, getRounds, deleteRound } from "@/lib/actions";
+import { getMembers, createRound, analyzeScoreImage, getRounds, deleteRound, updateRoundInfo } from "@/lib/actions";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar as CalendarIcon, MapPin, Save, Loader2, PlusCircle, Camera, Sparkles, Trash2, History } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Save, Loader2, PlusCircle, Camera, Sparkles, Trash2, History, X, Edit2 } from "lucide-react";
 
 export default function RoundManager() {
     const [members, setMembers] = useState<any[]>([]);
@@ -14,6 +14,8 @@ export default function RoundManager() {
     const [course, setCourse] = useState("");
     const [scores, setScores] = useState<Record<string, { memberId?: string, name: string, score: string, frontScore?: number | null, backScore?: number | null }>>({});
     const [selectedRound, setSelectedRound] = useState<any>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editRoundData, setEditRoundData] = useState<any>({ date: "", course: "", scores: [] });
 
     useEffect(() => {
         loadData();
@@ -35,6 +37,52 @@ export default function RoundManager() {
         });
         setScores(initialScores);
         setLoading(false);
+    }
+
+    function handleOpenDetails(round: any) {
+        setSelectedRound(round);
+        setIsEditing(false);
+        setEditRoundData({
+            date: round.date.split('T')[0],
+            course: round.course,
+            scores: round.scores.map((s: any) => ({
+                scoreId: s.id,
+                memberName: s.member.name,
+                score: s.score.toString(),
+                frontScore: s.frontScore?.toString() || "",
+                backScore: s.backScore?.toString() || ""
+            }))
+        });
+    }
+
+    async function handleUpdateRound() {
+        if (!editRoundData.course) {
+            alert("코스 이름을 입력해 주세요.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await updateRoundInfo(
+                selectedRound.id,
+                new Date(editRoundData.date),
+                editRoundData.course,
+                editRoundData.scores.map((s: any) => ({
+                    scoreId: s.scoreId,
+                    score: parseInt(s.score),
+                    frontScore: s.frontScore ? parseInt(s.frontScore) : null,
+                    backScore: s.backScore ? parseInt(s.backScore) : null
+                }))
+            );
+            alert("라운딩 정보가 수정되었습니다!");
+            setIsEditing(false);
+            setSelectedRound(null);
+            await loadData();
+        } catch (error) {
+            console.error(error);
+            alert("수정 저장 중 오류가 발생했습니다.");
+            setLoading(false);
+        }
     }
 
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -313,64 +361,159 @@ export default function RoundManager() {
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <div>
-                                    <h3 className="text-2xl font-bold gold-text-gradient">Round {selectedRound.roundNumber} 상세 기록</h3>
+                                    <h3 className="text-2xl font-bold gold-text-gradient">
+                                        Round {selectedRound.roundNumber} {isEditing ? '기록 수정' : '상세 기록'}
+                                    </h3>
                                     <p className="text-gray-400 text-sm flex items-center mt-1">
                                         <MapPin className="w-3 h-3 mr-1" /> {selectedRound.course} | <CalendarIcon className="w-3 h-3 mx-1" /> {new Date(selectedRound.date).toLocaleDateString()}
                                     </p>
                                 </div>
-                                <button
-                                    onClick={() => setSelectedRound(null)}
-                                    className="p-2 text-gray-400 hover:text-white"
-                                >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                                <div className="flex items-center space-x-2">
+                                    {!isEditing && (
+                                        <button
+                                            onClick={() => setIsEditing(true)}
+                                            className="p-2 text-[#c5a059] hover:bg-[#c5a059]/10 rounded-lg transition-all"
+                                            title="수정하기"
+                                        >
+                                            <Edit2 className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setSelectedRound(null)}
+                                        className="p-2 text-gray-400 hover:text-white"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="overflow-hidden border border-[#c5a059]/20 rounded-xl">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-[#c5a059]/10 text-[#c5a059] font-bold uppercase tracking-wider uppercase">
-                                        <tr>
-                                            <th className="px-4 py-3">이름</th>
-                                            <th className="px-4 py-3 text-center">전반</th>
-                                            <th className="px-4 py-3 text-center">후반</th>
-                                            <th className="px-4 py-3 text-center">전체</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-[#c5a059]/10">
-                                        {selectedRound.scores
-                                            .sort((a: any, b: any) => {
-                                                if (a.member.name === '박청산') return -1;
-                                                if (b.member.name === '박청산') return 1;
-                                                return 0;
-                                            })
-                                            .map((s: any) => (
-                                                <tr key={s.id} className="hover:bg-white/5 transition-colors">
-                                                    <td className={`px-4 py-3 font-medium ${s.member.name === '박청산' ? 'text-[#ffcc00]' : 'text-white'}`}>
-                                                        {s.member.name}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center text-gray-400">
-                                                        {s.frontScore || '-'}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center text-gray-400">
-                                                        {s.backScore || '-'}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center font-bold text-[#c5a059]">
-                                                        {s.score}
-                                                    </td>
+                            {isEditing ? (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-gray-500">날짜</label>
+                                            <input
+                                                type="date"
+                                                value={editRoundData.date}
+                                                onChange={(e) => setEditRoundData({ ...editRoundData, date: e.target.value })}
+                                                className="w-full bg-black/50 border border-[#c5a059]/30 rounded-lg px-3 py-2 text-sm text-white focus:border-[#c5a059] outline-none"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-gray-500">골프장</label>
+                                            <input
+                                                type="text"
+                                                value={editRoundData.course}
+                                                onChange={(e) => setEditRoundData({ ...editRoundData, course: e.target.value })}
+                                                className="w-full bg-black/50 border border-[#c5a059]/30 rounded-lg px-3 py-2 text-sm text-white focus:border-[#c5a059] outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-hidden border border-[#c5a059]/20 rounded-xl">
+                                        <table className="w-full text-xs text-left">
+                                            <thead className="bg-[#c5a059]/10 text-[#c5a059] font-bold uppercase">
+                                                <tr>
+                                                    <th className="px-3 py-2">이름</th>
+                                                    <th className="px-3 py-2 text-center">전반</th>
+                                                    <th className="px-3 py-2 text-center">후반</th>
+                                                    <th className="px-3 py-2 text-center">전체</th>
                                                 </tr>
-                                            ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                            </thead>
+                                            <tbody className="divide-y divide-[#c5a059]/10">
+                                                {editRoundData.scores.map((s: any, idx: number) => (
+                                                    <tr key={s.scoreId}>
+                                                        <td className="px-3 py-2 text-white">{s.memberName}</td>
+                                                        <td className="px-3 py-2">
+                                                            <input
+                                                                type="number"
+                                                                value={s.frontScore}
+                                                                onChange={(e) => {
+                                                                    const newScores = [...editRoundData.scores];
+                                                                    newScores[idx].frontScore = e.target.value;
+                                                                    setEditRoundData({ ...editRoundData, scores: newScores });
+                                                                }}
+                                                                className="w-full bg-black/30 border border-[#c5a059]/20 rounded px-1 py-1 text-center text-white outline-none"
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <input
+                                                                type="number"
+                                                                value={s.backScore}
+                                                                onChange={(e) => {
+                                                                    const newScores = [...editRoundData.scores];
+                                                                    newScores[idx].backScore = e.target.value;
+                                                                    setEditRoundData({ ...editRoundData, scores: newScores });
+                                                                }}
+                                                                className="w-full bg-black/30 border border-[#c5a059]/20 rounded px-1 py-1 text-center text-white outline-none"
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <input
+                                                                type="number"
+                                                                value={s.score}
+                                                                onChange={(e) => {
+                                                                    const newScores = [...editRoundData.scores];
+                                                                    newScores[idx].score = e.target.value;
+                                                                    setEditRoundData({ ...editRoundData, scores: newScores });
+                                                                }}
+                                                                className="w-full bg-black/30 border border-[#c5a059]/40 rounded px-1 py-1 text-center text-white font-bold outline-none"
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
 
-                            <button
-                                onClick={() => setSelectedRound(null)}
-                                className="btn-gold w-full mt-8 py-3"
-                            >
-                                닫기
-                            </button>
+                                    <div className="flex space-x-3">
+                                        <button onClick={() => setIsEditing(false)} className="flex-1 py-3 rounded-xl border border-gray-600 text-gray-400 hover:text-white transition-all">취소</button>
+                                        <button onClick={handleUpdateRound} className="flex-1 btn-gold py-3">저장하기</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="overflow-hidden border border-[#c5a059]/20 rounded-xl">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-[#c5a059]/10 text-[#c5a059] font-bold uppercase tracking-wider">
+                                                <tr>
+                                                    <th className="px-4 py-3">이름</th>
+                                                    <th className="px-4 py-3 text-center">전반</th>
+                                                    <th className="px-4 py-3 text-center">후반</th>
+                                                    <th className="px-4 py-3 text-center">전체</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[#c5a059]/10">
+                                                {[...selectedRound.scores]
+                                                    .sort((a: any, b: any) => a.score - b.score) // Lowest score first
+                                                    .map((s: any) => (
+                                                        <tr key={s.id} className="hover:bg-white/5 transition-colors">
+                                                            <td className={`px-4 py-3 font-medium ${s.member.name === '박청산' ? 'text-[#ffcc00]' : 'text-white'}`}>
+                                                                {s.member.name}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center text-gray-400">
+                                                                {s.frontScore || '-'}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center text-gray-400">
+                                                                {s.backScore || '-'}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center font-bold text-[#c5a059]">
+                                                                {s.score}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setSelectedRound(null)}
+                                        className="btn-gold w-full mt-8 py-3"
+                                    >
+                                        닫기
+                                    </button>
+                                </>
+                            )}
                         </motion.div>
                     </div>
                 )}
