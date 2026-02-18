@@ -61,33 +61,39 @@ export async function recalculateMemberHandicap(memberId: string) {
     });
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /* --- AI Image Analysis --- */
 
 export async function analyzeScoreImage(base64Image: string) {
-    try {
-        const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-        if (!apiKey) return { success: false, error: "GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다." };
+    let attempts = 0;
+    const maxAttempts = 3;
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-        });
+    while (attempts < maxAttempts) {
+        try {
+            const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+            if (!apiKey) return { success: false, error: "GOOGLE_GENERATIVE_AI_API_KEY 가 설정되지 않았습니다." };
 
-        // Detect MIME type and extract clean base64 data
-        let mimeType = "image/jpeg";
-        let data = base64Image;
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({
+                model: "gemini-2.0-flash-lite",
+            });
 
-        if (base64Image.startsWith("data:")) {
-            const match = base64Image.match(/^data:([^;]+);base64,(.+)$/);
-            if (match) {
-                mimeType = match[1];
-                data = match[2];
+            // Detect MIME type and extract clean base64 data
+            let mimeType = "image/jpeg";
+            let data = base64Image;
+
+            if (base64Image.startsWith("data:")) {
+                const match = base64Image.match(/^data:([^;]+);base64,(.+)$/);
+                if (match) {
+                    mimeType = match[1];
+                    data = match[2];
+                }
             }
-        }
 
-        const prompt = `
+            const prompt = `
         이 이미지는 골프 라운딩 성적표(스코어카드) 또는 단체팀 스코어보드입니다. 
         이미지에 보이는 모든 참가자의 이름과 점수를 추출해주세요.
         다른 설명은 생략하고 오직 JSON 데이터만 응답하세요.
@@ -111,43 +117,56 @@ export async function analyzeScoreImage(base64Image: string) {
         - 단체팀 리스트인 경우, 리스트에 있는 모든 사람 정보를 포함하세요.
         `;
 
-        const result = await model.generateContent([
-            {
-                inlineData: {
-                    data,
-                    mimeType,
+            const result = await model.generateContent([
+                {
+                    inlineData: {
+                        data,
+                        mimeType,
+                    },
                 },
-            },
-            { text: prompt },
-        ]);
+                { text: prompt },
+            ]);
 
-        const response = await result.response;
-        const text = response.text();
-        console.log("AI Raw Response:", text);
+            const response = await result.response;
+            const text = response.text();
+            console.log("AI Raw Response:", text);
 
-        try {
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) return { success: false, error: "AI 응답에서 유효한 데이터를 찾지 못했습니다." };
+            try {
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) return { success: false, error: "AI 응답에서 유효한 데이터를 찾지 못했습니다." };
 
-            const parsed = JSON.parse(jsonMatch[0]);
-            console.log("AI Parsed Result:", parsed);
-            return { success: true, data: parsed };
-        } catch (e) {
-            console.error("AI Response Parsing Failed:", text);
-            return { success: false, error: "AI가 보낸 데이터를 읽는 중 오류가 발생했습니다." };
+                const parsed = JSON.parse(jsonMatch[0]);
+                console.log("AI Parsed Result:", parsed);
+                return { success: true, data: parsed };
+            } catch (e) {
+                console.error("AI Response Parsing Failed:", text);
+                return { success: false, error: "AI가 보낸 데이터를 읽는 중 오류가 발생했습니다." };
+            }
+        } catch (error: any) {
+            attempts++;
+            const errorMessage = error.message || "";
+
+            // If it's a quota/rate limit error, wait and retry
+            if ((errorMessage.includes("429") || errorMessage.includes("quota")) && attempts < maxAttempts) {
+                const waitTime = attempts * 3000; // 3s, 6s...
+                console.warn(`Quota exceeded. Retrying in ${waitTime}ms... (Attempt ${attempts}/${maxAttempts})`);
+                await sleep(waitTime);
+                continue;
+            }
+
+            console.error("Critical AI Analysis Error:", error);
+            let userMessage = errorMessage || "이미지 분석 중 알 수 없는 오류가 발생했습니다.";
+
+            if (userMessage.includes("429") || userMessage.includes("quota")) {
+                userMessage = "AI 사용량이 일시적으로 너무 많습니다. 1분만 기다렸다가 다시 시도해 주세요.";
+            } else if (userMessage.includes("limit") || userMessage.includes("too large")) {
+                userMessage = "이미지 용량이 너무 큽니다. 사진을 재촬영하거나 수동으로 입력해 주세요.";
+            }
+
+            return { success: false, error: userMessage };
         }
-    } catch (error: any) {
-        console.error("Critical AI Analysis Error:", error);
-        let errorMessage = error.message || "이미지 분석 중 알 수 없는 오류가 발생했습니다.";
-
-        if (errorMessage.includes("429") || errorMessage.includes("quota")) {
-            errorMessage = "API 할당량 초과입니다. 잠시 후 다시 시도하세요.";
-        } else if (errorMessage.includes("limit") || errorMessage.includes("too large")) {
-            errorMessage = "이미지 용량이 너무 큽니다. 사진을 조금 더 작게 찍거나 리사이징이 필요합니다.";
-        }
-
-        return { success: false, error: errorMessage };
     }
+    return { success: false, error: "서버 점검 중입니다. 잠시 후 다시 시도해 주세요." };
 }
 
 /* --- Round Actions --- */
