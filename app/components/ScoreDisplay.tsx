@@ -6,8 +6,17 @@ import { useEffect, useState } from "react";
 import { getDashboardStats } from "@/lib/actions";
 import Link from "next/link";
 
+interface StatItem {
+    label: string;
+    value: string;
+    icon: any;
+    color: string;
+    href?: string;
+    details?: string | null;
+}
+
 export default function ScoreDisplay() {
-    const [stats, setStats] = useState([
+    const [stats, setStats] = useState<StatItem[]>([
         { label: "총 라운딩", value: "...", icon: Calendar, color: "#c5a059", href: "/rounds" },
         { label: "평균 스코어", value: "...", icon: Trophy, color: "#dfc18d" },
         { label: "최고 기록", value: "...", icon: Target, color: "#8e6d2f" },
@@ -20,7 +29,13 @@ export default function ScoreDisplay() {
                 setStats([
                     { label: "총 라운딩", value: data.totalRounds.toString(), icon: Calendar, color: "#c5a059", href: "/rounds" },
                     { label: "평균 스코어", value: data.averageScore, icon: Trophy, color: "#dfc18d" },
-                    { label: "최고 기록", value: data.bestScore.toString(), icon: Target, color: "#8e6d2f" },
+                    {
+                        label: "최고 기록",
+                        value: data.bestScore.toString(),
+                        icon: Target,
+                        color: "#8e6d2f",
+                        details: data.bestScoreDetails ? `${data.bestScoreDetails.course} | ${new Date(data.bestScoreDetails.date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')}` : null
+                    },
                 ]);
             } catch (error) {
                 console.error("Failed to load dashboard stats:", error);
@@ -43,12 +58,19 @@ export default function ScoreDisplay() {
                             <div className="p-3 rounded-xl bg-white/5 group-hover:bg-[#c5a059]/10 transition-colors">
                                 <stat.icon className="w-6 h-6 text-[#c5a059]" />
                             </div>
-                            <div>
+                            <div className="flex-1">
                                 <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-                                <h3 className="text-3xl font-bold text-white mt-1">
-                                    {stat.value}
-                                    {stat.label === "총 라운딩" && <span className="text-lg font-normal text-gray-400 ml-1">회</span>}
-                                </h3>
+                                <div className="flex flex-col">
+                                    <h3 className="text-3xl font-bold text-white mt-1">
+                                        {stat.value}
+                                        {stat.label === "총 라운딩" && <span className="text-lg font-normal text-gray-400 ml-1">회</span>}
+                                    </h3>
+                                    {(stat as any).details && (
+                                        <p className="text-[10px] text-[#c5a059]/80 mt-1 font-medium truncate">
+                                            {(stat as any).details}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </motion.div>

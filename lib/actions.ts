@@ -349,22 +349,50 @@ export async function deleteMember(memberId: string) {
 export async function getDashboardStats() {
     try {
         const totalRounds = await prisma.round.count();
-        const averageScoreResult = await prisma.score.aggregate({
-            _avg: {
-                score: true,
-            },
+
+        // 1. "박청산" 멤버 찾기
+        const cheongsan = await prisma.member.findFirst({
+            where: { name: "박청산" }
         });
 
-        const bestScoreResult = await prisma.score.aggregate({
-            _min: {
-                score: true,
-            },
+        if (!cheongsan) {
+            return {
+                totalRounds,
+                averageScore: "0.0",
+                bestScore: "-",
+                bestScoreDetails: null
+            };
+        }
+
+        // 2. 박청산의 모든 스코어 조회
+        const scores = await prisma.score.findMany({
+            where: { memberId: cheongsan.id },
+            include: { round: true }
         });
+
+        if (scores.length === 0) {
+            return {
+                totalRounds,
+                averageScore: "0.0",
+                bestScore: "-",
+                bestScoreDetails: null
+            };
+        }
+
+        // 3. 평균 스코어 계산
+        const average = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
+
+        // 4. 최고 기록(최저 타수) 찾기
+        const bestScoreRecord = scores.reduce((prev, curr) => (prev.score < curr.score ? prev : curr));
 
         return {
             totalRounds,
-            averageScore: averageScoreResult._avg.score?.toFixed(1) || "0.0",
-            bestScore: bestScoreResult._min.score || "-",
+            averageScore: average.toFixed(1),
+            bestScore: bestScoreRecord.score,
+            bestScoreDetails: {
+                course: bestScoreRecord.round.course,
+                date: bestScoreRecord.round.date
+            }
         };
     } catch (error: any) {
         console.error("Critical error in getDashboardStats:", error);
@@ -372,6 +400,7 @@ export async function getDashboardStats() {
             totalRounds: 0,
             averageScore: "0.0",
             bestScore: "-",
+            bestScoreDetails: null
         };
     }
 }
