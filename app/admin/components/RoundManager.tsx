@@ -22,6 +22,29 @@ export default function RoundManager() {
         loadData();
     }, []);
 
+    // Sync editRoundData when a round is selected
+    useEffect(() => {
+        if (selectedRound) {
+            const dateObj = new Date(selectedRound.date);
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            const dateString = `${y}-${m}-${d}`;
+
+            setEditRoundData({
+                date: dateString,
+                course: selectedRound.course,
+                scores: (selectedRound.scores || []).map((s: any) => ({
+                    scoreId: s.id,
+                    memberName: s.member?.name || "알 수 없음",
+                    score: (s.score || 0).toString(),
+                    frontScore: s.frontScore?.toString() || "",
+                    backScore: s.backScore?.toString() || ""
+                }))
+            });
+        }
+    }, [selectedRound]);
+
     async function loadData() {
         setLoading(true);
         const [membersData, roundsData] = await Promise.all([
@@ -43,17 +66,6 @@ export default function RoundManager() {
     function handleOpenDetails(round: any) {
         setSelectedRound(round);
         setIsEditing(false);
-        setEditRoundData({
-            date: round.date.split('T')[0],
-            course: round.course,
-            scores: round.scores.map((s: any) => ({
-                scoreId: s.id,
-                memberName: s.member.name,
-                score: s.score.toString(),
-                frontScore: s.frontScore?.toString() || "",
-                backScore: s.backScore?.toString() || ""
-            }))
-        });
     }
 
     async function handleUpdateRound() {
@@ -293,21 +305,68 @@ export default function RoundManager() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
                     {/* Iterate through members to ensure sorting priority (Cheong-san first) */}
                     {members.map((member) => {
-                        const s = scores[member.id] || { name: member.name, score: "" };
+                        const s = scores[member.id] || { name: member.name, score: "", frontScore: null, backScore: null };
                         return (
-                            <div key={member.id} className="bg-black/30 border border-[#c5a059]/10 rounded-xl p-3 flex flex-col justify-between space-y-2">
+                            <div key={member.id} className="bg-black/30 border border-[#c5a059]/10 rounded-xl p-3 space-y-3">
                                 <div className="flex justify-between items-start">
                                     <span className={`text-sm font-medium ${member.name === '박청산' ? 'text-[#ffcc00] font-bold' : 'text-white'}`}>
                                         {member.name}
                                     </span>
                                 </div>
-                                <input
-                                    type="number"
-                                    placeholder="0"
-                                    value={s.score}
-                                    onChange={(e) => setScores({ ...scores, [member.id]: { ...s, score: e.target.value } })}
-                                    className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-2 py-1.5 text-center text-white focus:border-[#c5a059] outline-none text-lg font-bold"
-                                />
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-gray-500 text-center uppercase">Out</p>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            value={s.frontScore || ""}
+                                            onChange={(e) => {
+                                                const front = e.target.value ? parseInt(e.target.value) : 0;
+                                                const back = s.backScore || 0;
+                                                setScores({
+                                                    ...scores,
+                                                    [member.id]: {
+                                                        ...s,
+                                                        frontScore: e.target.value ? parseInt(e.target.value) : null,
+                                                        score: (front + back).toString()
+                                                    }
+                                                });
+                                            }}
+                                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-gray-500 text-center uppercase">In</p>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            value={s.backScore || ""}
+                                            onChange={(e) => {
+                                                const back = e.target.value ? parseInt(e.target.value) : 0;
+                                                const front = s.frontScore || 0;
+                                                setScores({
+                                                    ...scores,
+                                                    [member.id]: {
+                                                        ...s,
+                                                        backScore: e.target.value ? parseInt(e.target.value) : null,
+                                                        score: (front + back).toString()
+                                                    }
+                                                });
+                                            }}
+                                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-[#c5a059] text-center uppercase font-bold">Total</p>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            value={s.score}
+                                            onChange={(e) => setScores({ ...scores, [member.id]: { ...s, score: e.target.value } })}
+                                            className="w-full bg-[#c5a059]/10 border border-[#c5a059]/40 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm font-bold"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         );
                     })}
@@ -315,20 +374,67 @@ export default function RoundManager() {
                     {Object.entries(scores)
                         .filter(([id, s]) => !s.memberId)
                         .map(([id, s]) => (
-                            <div key={id} className="bg-black/30 border border-blue-500/20 rounded-xl p-3 flex flex-col justify-between space-y-2">
+                            <div key={id} className="bg-black/30 border border-blue-500/20 rounded-xl p-3 space-y-3">
                                 <div className="flex justify-between items-start">
                                     <span className="text-sm font-medium text-blue-400">
                                         {s.name}
                                     </span>
                                     <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded leading-none">신규</span>
                                 </div>
-                                <input
-                                    type="number"
-                                    placeholder="0"
-                                    value={s.score}
-                                    onChange={(e) => setScores({ ...scores, [id]: { ...s, score: e.target.value } })}
-                                    className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-2 py-1.5 text-center text-white focus:border-[#c5a059] outline-none text-lg font-bold"
-                                />
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-gray-500 text-center uppercase">Out</p>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            value={s.frontScore || ""}
+                                            onChange={(e) => {
+                                                const front = e.target.value ? parseInt(e.target.value) : 0;
+                                                const back = s.backScore || 0;
+                                                setScores({
+                                                    ...scores,
+                                                    [id]: {
+                                                        ...s,
+                                                        frontScore: e.target.value ? parseInt(e.target.value) : null,
+                                                        score: (front + back).toString()
+                                                    }
+                                                });
+                                            }}
+                                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-gray-500 text-center uppercase">In</p>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            value={s.backScore || ""}
+                                            onChange={(e) => {
+                                                const back = e.target.value ? parseInt(e.target.value) : 0;
+                                                const front = s.frontScore || 0;
+                                                setScores({
+                                                    ...scores,
+                                                    [id]: {
+                                                        ...s,
+                                                        backScore: e.target.value ? parseInt(e.target.value) : null,
+                                                        score: (front + back).toString()
+                                                    }
+                                                });
+                                            }}
+                                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-[#c5a059] text-center uppercase font-bold">Total</p>
+                                        <input
+                                            type="number"
+                                            placeholder="0"
+                                            value={s.score}
+                                            onChange={(e) => setScores({ ...scores, [id]: { ...s, score: e.target.value } })}
+                                            className="w-full bg-[#c5a059]/10 border border-[#c5a059]/40 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm font-bold"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         ))}
                 </div>
@@ -360,7 +466,7 @@ export default function RoundManager() {
                         rounds.map((round) => (
                             <div
                                 key={round.id}
-                                onClick={() => setSelectedRound(round)}
+                                onClick={() => handleOpenDetails(round)}
                                 className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex justify-between items-center group cursor-pointer hover:bg-[#c5a059]/5 transition-all"
                             >
                                 <div className="flex items-center space-x-4">
@@ -470,47 +576,59 @@ export default function RoundManager() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-[#c5a059]/10">
-                                                {editRoundData.scores.map((s: any, idx: number) => (
-                                                    <tr key={s.scoreId}>
-                                                        <td className="px-3 py-2 text-white">{s.memberName}</td>
-                                                        <td className="px-3 py-2">
-                                                            <input
-                                                                type="number"
-                                                                value={s.frontScore}
-                                                                onChange={(e) => {
-                                                                    const newScores = [...editRoundData.scores];
-                                                                    newScores[idx].frontScore = e.target.value;
-                                                                    setEditRoundData({ ...editRoundData, scores: newScores });
-                                                                }}
-                                                                className="w-full bg-black/30 border border-[#c5a059]/20 rounded px-1 py-1 text-center text-white outline-none"
-                                                            />
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <input
-                                                                type="number"
-                                                                value={s.backScore}
-                                                                onChange={(e) => {
-                                                                    const newScores = [...editRoundData.scores];
-                                                                    newScores[idx].backScore = e.target.value;
-                                                                    setEditRoundData({ ...editRoundData, scores: newScores });
-                                                                }}
-                                                                className="w-full bg-black/30 border border-[#c5a059]/20 rounded px-1 py-1 text-center text-white outline-none"
-                                                            />
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <input
-                                                                type="number"
-                                                                value={s.score}
-                                                                onChange={(e) => {
-                                                                    const newScores = [...editRoundData.scores];
-                                                                    newScores[idx].score = e.target.value;
-                                                                    setEditRoundData({ ...editRoundData, scores: newScores });
-                                                                }}
-                                                                className="w-full bg-black/30 border border-[#c5a059]/40 rounded px-1 py-1 text-center text-white font-bold outline-none"
-                                                            />
-                                                        </td>
+                                                {editRoundData.scores && editRoundData.scores.length > 0 ? (
+                                                    editRoundData.scores.map((s: any, idx: number) => (
+                                                        <tr key={s.scoreId || idx}>
+                                                            <td className="px-3 py-2 text-white">{s.memberName}</td>
+                                                            <td className="px-3 py-2">
+                                                                <input
+                                                                    type="number"
+                                                                    value={s.frontScore}
+                                                                    onChange={(e) => {
+                                                                        const newScores = [...editRoundData.scores];
+                                                                        newScores[idx].frontScore = e.target.value;
+                                                                        const front = parseInt(e.target.value) || 0;
+                                                                        const back = parseInt(newScores[idx].backScore) || 0;
+                                                                        newScores[idx].score = (front + back).toString();
+                                                                        setEditRoundData({ ...editRoundData, scores: newScores });
+                                                                    }}
+                                                                    className="w-full bg-black/30 border border-[#c5a059]/20 rounded px-1 py-1 text-center text-white outline-none"
+                                                                />
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <input
+                                                                    type="number"
+                                                                    value={s.backScore}
+                                                                    onChange={(e) => {
+                                                                        const newScores = [...editRoundData.scores];
+                                                                        newScores[idx].backScore = e.target.value;
+                                                                        const back = parseInt(e.target.value) || 0;
+                                                                        const front = parseInt(newScores[idx].frontScore) || 0;
+                                                                        newScores[idx].score = (front + back).toString();
+                                                                        setEditRoundData({ ...editRoundData, scores: newScores });
+                                                                    }}
+                                                                    className="w-full bg-black/30 border border-[#c5a059]/20 rounded px-1 py-1 text-center text-white outline-none"
+                                                                />
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <input
+                                                                    type="number"
+                                                                    value={s.score}
+                                                                    onChange={(e) => {
+                                                                        const newScores = [...editRoundData.scores];
+                                                                        newScores[idx].score = e.target.value;
+                                                                        setEditRoundData({ ...editRoundData, scores: newScores });
+                                                                    }}
+                                                                    className="w-full bg-black/30 border border-[#c5a059]/40 rounded px-1 py-1 text-center text-white font-bold outline-none"
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={4} className="px-3 py-10 text-center text-gray-500">데이터를 불러오는 중이거나 스코어 정보가 없습니다.</td>
                                                     </tr>
-                                                ))}
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
