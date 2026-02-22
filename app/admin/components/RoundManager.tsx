@@ -54,11 +54,25 @@ export default function RoundManager() {
         setMembers(membersData);
         setRounds(roundsData);
 
-        // Initialize scores with current members (sorted by getMembers)
+        // Find Park Cheong-san
+        const park = membersData.find((m: any) => m.name === "박청산");
+
+        // Initialize scores with exactly 4 slots as requested
         const initialScores: Record<string, any> = {};
-        membersData.forEach((m: any) => {
-            initialScores[m.id] = { memberId: m.id, name: m.name, score: "", frontScore: null, backScore: null };
-        });
+
+        // Slot 1: Park Cheong-san (if exists)
+        if (park) {
+            initialScores[park.id] = { memberId: park.id, name: park.name, score: "", frontScore: null, backScore: null };
+        } else {
+            // Fallback if Park is not in DB for some reason, but we'll use a placeholder
+            initialScores["default-park"] = { name: "박청산", score: "", frontScore: null, backScore: null };
+        }
+
+        // Slots 2-4: Empty placeholders
+        for (let i = 1; i <= 3; i++) {
+            initialScores[`placeholder-${i}`] = { name: "", score: "", frontScore: null, backScore: null };
+        }
+
         setScores(initialScores);
         setLoading(false);
     }
@@ -157,28 +171,32 @@ export default function RoundManager() {
                     if (result.date) setDate(result.date);
                     if (result.course) setCourse(result.course);
 
-                    const newScores = { ...scores };
-                    result.results?.forEach((item: any) => {
+                    // Fresh slate for AI results
+                    const newScores: Record<string, any> = {};
+
+                    result.results?.forEach((item: any, idx: number) => {
                         // Find member by name
                         const member = members.find(m => m.name.includes(item.name) || item.name.includes(m.name));
-                        if (member) {
-                            newScores[member.id] = {
-                                memberId: member.id,
-                                name: member.name,
-                                score: item.score.toString(),
-                                frontScore: item.frontScore,
-                                backScore: item.backScore
-                            };
-                        } else {
-                            const tempId = `new-${item.name}`;
-                            newScores[tempId] = {
-                                name: item.name,
-                                score: item.score.toString(),
-                                frontScore: item.frontScore,
-                                backScore: item.backScore
-                            };
-                        }
+                        const key = member ? member.id : `new-${idx}-${item.name}`;
+
+                        newScores[key] = {
+                            memberId: member?.id,
+                            name: member ? member.name : item.name,
+                            score: item.score.toString(),
+                            frontScore: item.frontScore,
+                            backScore: item.backScore
+                        };
                     });
+
+                    // If Park Cheong-san wasn't in the AI results, keep him in the list if he was already there or add him
+                    const park = members.find((m: any) => m.name === "박청산");
+                    if (park && !newScores[park.id]) {
+                        // We can either add him at the top or just leave him out if he didn't play.
+                        // Usually he's always there, so let's ensure he stays if the user wants.
+                        // But if it's AI analysis, maybe we should only show who was in the photo?
+                        // Let's stick to the AI results but ensure others can be added manually.
+                    }
+
                     setScores(newScores);
                     alert("AI가 성적표를 분석하여 데이터를 입력했습니다. 신규 인원은 저장 시 자동으로 등록됩니다.");
                 } catch (err: any) {
@@ -204,7 +222,7 @@ export default function RoundManager() {
         }
 
         const scoresData = Object.values(scores)
-            .filter((s) => s.score !== "")
+            .filter((s) => s.name.trim() !== "" && s.score !== "")
             .map((s) => ({
                 memberId: s.memberId,
                 name: s.name,
@@ -214,7 +232,7 @@ export default function RoundManager() {
             }));
 
         if (scoresData.length === 0) {
-            alert("최소 한 명 이상의 스코어를 입력해 주세요.");
+            alert("최소 한 명 이상의 인원과 스코어를 입력해 주세요.");
             return;
         }
 
@@ -223,11 +241,6 @@ export default function RoundManager() {
             await createRound(new Date(date), course, scoresData);
             alert("라운딩 기록이 저장되었습니다! 신규 회원은 자동으로 등록되었습니다.");
             setCourse("");
-            const resetScores: Record<string, any> = {};
-            members.forEach((m: any) => {
-                resetScores[m.id] = { memberId: m.id, name: m.name, score: "", frontScore: null, backScore: null };
-            });
-            setScores(resetScores);
             await loadData();
         } catch (error) {
             console.error(error);
@@ -299,19 +312,77 @@ export default function RoundManager() {
                 </div>
 
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                    단체팀 / 개별 멤버 스코어
-                    <span className="ml-3 text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded">총 {Object.keys(scores).length}명</span>
+                    라운딩 멤버 및 스코어
+                    <span className="ml-3 text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded">총 {Object.values(scores).filter(s => s.name).length}명</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-                    {/* Iterate through members to ensure sorting priority (Cheong-san first) */}
-                    {members.map((member) => {
-                        const s = scores[member.id] || { name: member.name, score: "", frontScore: null, backScore: null };
+                    {Object.entries(scores).map(([key, s]) => {
+                        const isPlaceholder = key.startsWith('placeholder-');
+                        const isPark = s.name === "박청산";
+
                         return (
-                            <div key={member.id} className="bg-black/30 border border-[#c5a059]/10 rounded-xl p-3 space-y-3">
+                            <div key={key} className={`bg-black/30 border ${isPark ? 'border-[#c5a059]/40 bg-[#c5a059]/5' : (s.memberId ? 'border-[#c5a059]/10' : 'border-blue-500/20')} rounded-xl p-3 space-y-3 relative group`}>
                                 <div className="flex justify-between items-start">
-                                    <span className={`text-sm font-medium ${member.name === '박청산' ? 'text-[#ffcc00] font-bold' : 'text-white'}`}>
-                                        {member.name}
-                                    </span>
+                                    <div className="flex-1">
+                                        {(isPlaceholder || !s.memberId) && !isPark ? (
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="이름 입력"
+                                                    value={s.name}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        // If user types a name that matches an existing member, we could auto-link it
+                                                        // For now, just update the name
+                                                        setScores({
+                                                            ...scores,
+                                                            [key]: { ...s, name: val, memberId: undefined }
+                                                        });
+                                                    }}
+                                                    className="w-full bg-transparent border-b border-[#c5a059]/20 text-sm font-medium text-white focus:border-[#c5a059] outline-none py-0.5"
+                                                />
+                                                {s.name && !s.memberId && (
+                                                    <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-32 overflow-y-auto bg-black border border-[#c5a059]/30 rounded-lg shadow-xl hidden group-focus-within:block">
+                                                        {members
+                                                            .filter(m => m.name.includes(s.name) && !Object.values(scores).some(sc => sc.memberId === m.id))
+                                                            .map(m => (
+                                                                <button
+                                                                    key={m.id}
+                                                                    onClick={() => {
+                                                                        setScores({
+                                                                            ...scores,
+                                                                            [key]: { ...s, name: m.name, memberId: m.id }
+                                                                        });
+                                                                    }}
+                                                                    className="w-full text-left px-3 py-2 text-xs text-white hover:bg-[#c5a059]/20 transition-colors border-b border-white/5 last:border-0"
+                                                                >
+                                                                    {m.name} <span className="text-[10px] text-gray-500 ml-1">(기존 회원)</span>
+                                                                </button>
+                                                            ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className={`text-sm font-medium ${isPark ? 'text-[#ffcc00] font-bold' : 'text-white'}`}>
+                                                {s.name}
+                                                {s.memberId && !isPark && <span className="ml-1 text-[10px] text-gray-500 font-normal">(기존)</span>}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {!isPark && (
+                                        <button
+                                            onClick={() => {
+                                                const newScores = { ...scores };
+                                                delete newScores[key];
+                                                // If we delete a slot and have less than 4, maybe add back a placeholder?
+                                                // Or just let it be. Let's filter out empty ones on save.
+                                                setScores(newScores);
+                                            }}
+                                            className="p-1 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
                                     <div className="space-y-1">
@@ -325,10 +396,10 @@ export default function RoundManager() {
                                                 const back = s.backScore || 0;
                                                 setScores({
                                                     ...scores,
-                                                    [member.id]: {
+                                                    [key]: {
                                                         ...s,
                                                         frontScore: e.target.value ? parseInt(e.target.value) : null,
-                                                        score: (front + back).toString()
+                                                        score: (front + (back || 0)).toString()
                                                     }
                                                 });
                                             }}
@@ -346,10 +417,10 @@ export default function RoundManager() {
                                                 const front = s.frontScore || 0;
                                                 setScores({
                                                     ...scores,
-                                                    [member.id]: {
+                                                    [key]: {
                                                         ...s,
                                                         backScore: e.target.value ? parseInt(e.target.value) : null,
-                                                        score: (front + back).toString()
+                                                        score: ((front || 0) + back).toString()
                                                     }
                                                 });
                                             }}
@@ -362,7 +433,7 @@ export default function RoundManager() {
                                             type="number"
                                             placeholder="0"
                                             value={s.score}
-                                            onChange={(e) => setScores({ ...scores, [member.id]: { ...s, score: e.target.value } })}
+                                            onChange={(e) => setScores({ ...scores, [key]: { ...s, score: e.target.value } })}
                                             className="w-full bg-[#c5a059]/10 border border-[#c5a059]/40 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm font-bold"
                                         />
                                     </div>
@@ -370,73 +441,21 @@ export default function RoundManager() {
                             </div>
                         );
                     })}
-                    {/* New members from AI analysis that aren't in members list yet */}
-                    {Object.entries(scores)
-                        .filter(([id, s]) => !s.memberId)
-                        .map(([id, s]) => (
-                            <div key={id} className="bg-black/30 border border-blue-500/20 rounded-xl p-3 space-y-3">
-                                <div className="flex justify-between items-start">
-                                    <span className="text-sm font-medium text-blue-400">
-                                        {s.name}
-                                    </span>
-                                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded leading-none">신규</span>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] text-gray-500 text-center uppercase">Out</p>
-                                        <input
-                                            type="number"
-                                            placeholder="0"
-                                            value={s.frontScore || ""}
-                                            onChange={(e) => {
-                                                const front = e.target.value ? parseInt(e.target.value) : 0;
-                                                const back = s.backScore || 0;
-                                                setScores({
-                                                    ...scores,
-                                                    [id]: {
-                                                        ...s,
-                                                        frontScore: e.target.value ? parseInt(e.target.value) : null,
-                                                        score: (front + back).toString()
-                                                    }
-                                                });
-                                            }}
-                                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] text-gray-500 text-center uppercase">In</p>
-                                        <input
-                                            type="number"
-                                            placeholder="0"
-                                            value={s.backScore || ""}
-                                            onChange={(e) => {
-                                                const back = e.target.value ? parseInt(e.target.value) : 0;
-                                                const front = s.frontScore || 0;
-                                                setScores({
-                                                    ...scores,
-                                                    [id]: {
-                                                        ...s,
-                                                        backScore: e.target.value ? parseInt(e.target.value) : null,
-                                                        score: (front + back).toString()
-                                                    }
-                                                });
-                                            }}
-                                            className="w-full bg-black/50 border border-[#c5a059]/20 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] text-[#c5a059] text-center uppercase font-bold">Total</p>
-                                        <input
-                                            type="number"
-                                            placeholder="0"
-                                            value={s.score}
-                                            onChange={(e) => setScores({ ...scores, [id]: { ...s, score: e.target.value } })}
-                                            className="w-full bg-[#c5a059]/10 border border-[#c5a059]/40 rounded-lg px-1 py-1 text-center text-white focus:border-[#c5a059] outline-none text-sm font-bold"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+
+                    {/* Add Slot Button */}
+                    <button
+                        onClick={() => {
+                            const newId = `placeholder-${Date.now()}`;
+                            setScores({
+                                ...scores,
+                                [newId]: { name: "", score: "", frontScore: null, backScore: null }
+                            });
+                        }}
+                        className="border-2 border-dashed border-[#c5a059]/20 rounded-xl p-3 flex flex-col items-center justify-center text-gray-500 hover:border-[#c5a059]/40 hover:text-[#c5a059] transition-all group min-h-[100px]"
+                    >
+                        <PlusCircle className="w-6 h-6 mb-2 opacity-50 group-hover:opacity-100" />
+                        <span className="text-xs font-medium">멤버 추가</span>
+                    </button>
                 </div>
 
                 <button
