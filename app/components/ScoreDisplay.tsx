@@ -30,7 +30,10 @@ export default function ScoreDisplay() {
                     { 
                         label: "총 라운딩", 
                         value: data.totalRounds.toString(), 
-                        subValue: `'26년: ${data.totalRounds2026}회`,
+                        badges: [
+                            { label: "'25년", value: `${data.totalRounds2025}회` },
+                            { label: "'26년", value: `${data.totalRounds2026}회` }
+                        ],
                         icon: Calendar, 
                         color: "#c5a059", 
                         href: "/rounds" 
@@ -38,18 +41,27 @@ export default function ScoreDisplay() {
                     { 
                         label: "평균 스코어", 
                         value: data.averageScore, 
-                        subValue: `'26년: ${data.averageScore2026}`,
+                        badges: [
+                            { label: "'25년", value: data.averageScore2025 },
+                            { label: "'26년", value: data.averageScore2026 }
+                        ],
                         icon: Trophy, 
                         color: "#dfc18d" 
                     },
                     {
                         label: "최고 기록",
                         value: data.bestScore.toString(),
-                        subValue: `'26년: ${data.bestScore2026}`,
+                        badges: [
+                            { label: "'25년", value: data.bestScore2025 },
+                            { label: "'26년", value: data.bestScore2026 }
+                        ],
                         icon: Target,
                         color: "#8e6d2f",
-                        details: data.bestScoreDetails ? `${data.bestScoreDetails.course} | ${new Date(data.bestScoreDetails.date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')}` : null,
-                        details2026: data.bestScoreDetails2026 ? `${data.bestScoreDetails2026.course} | ${new Date(data.bestScoreDetails2026.date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')}` : null
+                        details: [
+                            { label: "최고", value: data.bestScoreDetails },
+                            { label: "'25", value: data.bestScoreDetails2025 },
+                            { label: "'26", value: data.bestScoreDetails2026 }
+                        ].filter(d => d.value)
                     },
                 ]);
             } catch (error) {
@@ -76,11 +88,13 @@ export default function ScoreDisplay() {
                             <div className="flex-1">
                                 <div className="flex justify-between items-start">
                                     <p className="text-sm text-gray-400 font-medium">{stat.label}</p>
-                                    {stat.subValue && (
-                                        <p className="text-[11px] text-[#c5a059] font-bold tracking-tight bg-[#c5a059]/10 px-2 py-0.5 rounded-full">
-                                            {stat.subValue}
-                                        </p>
-                                    )}
+                                    <div className="flex flex-wrap gap-1 justify-end max-w-[120px]">
+                                        {stat.badges?.map((badge: any) => (
+                                            <p key={badge.label} className="text-[9px] text-[#c5a059] font-bold tracking-tight bg-[#c5a059]/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                                {badge.label}: {badge.value}
+                                            </p>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div className="flex flex-col">
                                     <h3 className="text-3xl font-black text-white mt-0.5 flex items-baseline">
@@ -89,16 +103,12 @@ export default function ScoreDisplay() {
                                     </h3>
                                     {stat.details && (
                                         <div className="mt-1.5 space-y-0.5">
-                                            <p className="text-[10px] text-gray-500 font-medium flex items-center">
-                                                <span className="w-1 h-1 rounded-full bg-gray-600 mr-1.5"></span>
-                                                최고: {stat.details}
-                                            </p>
-                                            {stat.details2026 && (
-                                                <p className="text-[10px] text-[#c5a059]/80 font-medium flex items-center">
-                                                    <span className="w-1 h-1 rounded-full bg-[#c5a059]/60 mr-1.5"></span>
-                                                    '26: {stat.details2026}
+                                            {stat.details.map((detail: any, i: number) => (
+                                                <p key={i} className={`text-[10px] font-medium flex items-center ${detail.label === '최고' ? 'text-gray-500' : 'text-[#c5a059]/80'}`}>
+                                                    <span className={`w-1 h-1 rounded-full mr-1.5 ${detail.label === '최고' ? 'bg-gray-600' : 'bg-[#c5a059]/60'}`}></span>
+                                                    {detail.label}: {detail.value.course} | {new Date(detail.value.date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')}
                                                 </p>
-                                            )}
+                                            ))}
                                         </div>
                                     )}
                                 </div>

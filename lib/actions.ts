@@ -359,12 +359,16 @@ export async function getDashboardStats() {
             return {
                 totalRounds,
                 totalRounds2026: 0,
+                totalRounds2025: 0,
                 averageScore: "0.0",
                 averageScore2026: "0.0",
+                averageScore2025: "0.0",
                 bestScore: "-",
                 bestScore2026: "-",
+                bestScore2025: "-",
                 bestScoreDetails: null,
-                bestScoreDetails2026: null
+                bestScoreDetails2026: null,
+                bestScoreDetails2025: null
             };
         }
 
@@ -378,27 +382,38 @@ export async function getDashboardStats() {
             return {
                 totalRounds,
                 totalRounds2026: 0,
+                totalRounds2025: 0,
                 averageScore: "0.0",
                 averageScore2026: "0.0",
+                averageScore2025: "0.0",
                 bestScore: "-",
                 bestScore2026: "-",
+                bestScore2025: "-",
                 bestScoreDetails: null,
-                bestScoreDetails2026: null
+                bestScoreDetails2026: null,
+                bestScoreDetails2025: null
             };
         }
 
-        // 3. 2026년도 데이터 필터링
+        // 3. 연도별 데이터 필터링 (2025, 2026)
         const scores2026 = allScores.filter(s => new Date(s.round.date).getFullYear() === 2026);
+        const scores2025 = allScores.filter(s => new Date(s.round.date).getFullYear() === 2025);
 
         // 4. 평균 스코어 계산
         const average = allScores.reduce((sum, s) => sum + s.score, 0) / allScores.length;
+        
         const average2026 = scores2026.length > 0
             ? scores2026.reduce((sum, s) => sum + s.score, 0) / scores2026.length
+            : 0;
+            
+        const average2025 = scores2025.length > 0
+            ? scores2025.reduce((sum, s) => sum + s.score, 0) / scores2025.length
             : 0;
 
         // 5. 최고 기록(최저 타수) 찾기 - 9홀(60타 미만) 제외
         const fullScores = allScores.filter(s => s.score >= 60);
         const fullScores2026 = scores2026.filter(s => s.score >= 60);
+        const fullScores2025 = scores2025.filter(s => s.score >= 60);
 
         let bestScoreRecord = null;
         if (fullScores.length > 0) {
@@ -409,14 +424,22 @@ export async function getDashboardStats() {
         if (fullScores2026.length > 0) {
             bestScoreRecord2026 = fullScores2026.reduce((prev, curr) => (prev.score < curr.score ? prev : curr));
         }
+        
+        let bestScoreRecord2025 = null;
+        if (fullScores2025.length > 0) {
+            bestScoreRecord2025 = fullScores2025.reduce((prev, curr) => (prev.score < curr.score ? prev : curr));
+        }
 
         return {
             totalRounds,
             totalRounds2026: scores2026.length,
+            totalRounds2025: scores2025.length,
             averageScore: average.toFixed(1),
             averageScore2026: average2026 > 0 ? average2026.toFixed(1) : "0.0",
+            averageScore2025: average2025 > 0 ? average2025.toFixed(1) : "0.0",
             bestScore: bestScoreRecord ? bestScoreRecord.score : "-",
             bestScore2026: bestScoreRecord2026 ? bestScoreRecord2026.score : "-",
+            bestScore2025: bestScoreRecord2025 ? bestScoreRecord2025.score : "-",
             bestScoreDetails: bestScoreRecord ? {
                 course: bestScoreRecord.round.course,
                 date: bestScoreRecord.round.date
@@ -424,6 +447,10 @@ export async function getDashboardStats() {
             bestScoreDetails2026: bestScoreRecord2026 ? {
                 course: bestScoreRecord2026.round.course,
                 date: bestScoreRecord2026.round.date
+            } : null,
+            bestScoreDetails2025: bestScoreRecord2025 ? {
+                course: bestScoreRecord2025.round.course,
+                date: bestScoreRecord2025.round.date
             } : null
         };
     } catch (error: any) {
@@ -431,12 +458,16 @@ export async function getDashboardStats() {
         return {
             totalRounds: 0,
             totalRounds2026: 0,
+            totalRounds2025: 0,
             averageScore: "0.0",
             averageScore2026: "0.0",
+            averageScore2025: "0.0",
             bestScore: "-",
             bestScore2026: "-",
+            bestScore2025: "-",
             bestScoreDetails: null,
-            bestScoreDetails2026: null
+            bestScoreDetails2026: null,
+            bestScoreDetails2025: null
         };
     }
 }
