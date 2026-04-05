@@ -486,7 +486,7 @@ export default function RoundManager() {
                             <div
                                 key={round.id}
                                 onClick={() => handleOpenDetails(round)}
-                                className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex justify-between items-center group cursor-pointer hover:bg-[#c5a059]/5 transition-all"
+                                className="bg-black/40 border border-[#c5a059]/10 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group cursor-pointer hover:bg-[#c5a059]/5 transition-all"
                             >
                                 <div className="flex items-center space-x-4">
                                     <div className="text-center min-w-[60px]">
@@ -502,17 +502,17 @@ export default function RoundManager() {
                                         <p className="font-bold text-white uppercase tracking-tight">{round.course}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center space-x-4">
-                                    <div className="hidden md:flex -space-x-2">
+                                <div className="flex items-center space-x-4 shrink-0 sm:self-auto self-end">
+                                    <div className="flex -space-x-1 sm:-space-x-2 shrink-0">
                                         {round.scores.slice(0, 4).map((s: any) => (
-                                            <div key={s.id} className="w-8 h-8 rounded-full bg-[#1e3a2b] border border-[#c5a059]/30 flex items-center justify-center text-[10px] font-bold text-[#dfc18d] shadow-lg" title={`${s.member.name}: ${s.score}`}>
+                                            <div key={s.id} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#1e3a2b] border border-[#c5a059]/30 flex items-center justify-center text-[10px] font-bold text-[#dfc18d] shadow-lg" title={`${s.member.name}: ${s.score}`}>
                                                 {s.score}
                                             </div>
                                         ))}
                                     </div>
                                     <button
                                         onClick={(e) => handleDeleteRound(round.id, round.roundNumber, e)}
-                                        className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                        className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all md:opacity-0 group-hover:opacity-100"
                                     >
                                         <Trash2 className="w-5 h-5" />
                                     </button>
@@ -584,8 +584,8 @@ export default function RoundManager() {
                                         </div>
                                     </div>
 
-                                    <div className="overflow-hidden border border-[#c5a059]/20 rounded-xl">
-                                        <table className="w-full text-xs text-left">
+                                    <div className="overflow-x-auto border border-[#c5a059]/20 rounded-xl">
+                                        <table className="w-full text-xs text-left min-w-[500px] sm:min-w-0">
                                             <thead className="bg-[#c5a059]/10 text-[#c5a059] font-bold uppercase">
                                                 <tr>
                                                     <th className="px-3 py-2">이름</th>
@@ -659,8 +659,8 @@ export default function RoundManager() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="overflow-hidden border border-[#c5a059]/20 rounded-xl">
-                                        <table className="w-full text-sm text-left">
+                                    <div className="overflow-x-auto border border-[#c5a059]/20 rounded-xl">
+                                        <table className="w-full text-sm text-left min-w-[500px] sm:min-w-0">
                                             <thead className="bg-[#c5a059]/10 text-[#c5a059] font-bold uppercase tracking-wider">
                                                 <tr>
                                                     <th className="px-4 py-3">이름</th>
