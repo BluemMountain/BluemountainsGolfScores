@@ -349,7 +349,7 @@ export async function deleteMember(memberId: string) {
 export async function getDashboardStats() {
     try {
         const totalRounds = await prisma.round.count();
-
+        
         // 1. "박청산" 멤버 찾기
         const cheongsan = await prisma.member.findFirst({
             where: { name: "박청산" }
@@ -358,49 +358,85 @@ export async function getDashboardStats() {
         if (!cheongsan) {
             return {
                 totalRounds,
+                totalRounds2026: 0,
                 averageScore: "0.0",
+                averageScore2026: "0.0",
                 bestScore: "-",
-                bestScoreDetails: null
+                bestScore2026: "-",
+                bestScoreDetails: null,
+                bestScoreDetails2026: null
             };
         }
 
         // 2. 박청산의 모든 스코어 조회
-        const scores = await prisma.score.findMany({
+        const allScores = await prisma.score.findMany({
             where: { memberId: cheongsan.id },
             include: { round: true }
         });
 
-        if (scores.length === 0) {
+        if (allScores.length === 0) {
             return {
                 totalRounds,
+                totalRounds2026: 0,
                 averageScore: "0.0",
+                averageScore2026: "0.0",
                 bestScore: "-",
-                bestScoreDetails: null
+                bestScore2026: "-",
+                bestScoreDetails: null,
+                bestScoreDetails2026: null
             };
         }
 
-        // 3. 평균 스코어 계산
-        const average = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
+        // 3. 2026년도 데이터 필터링
+        const scores2026 = allScores.filter(s => new Date(s.round.date).getFullYear() === 2026);
 
-        // 4. 최고 기록(최저 타수) 찾기
-        const bestScoreRecord = scores.reduce((prev, curr) => (prev.score < curr.score ? prev : curr));
+        // 4. 평균 스코어 계산
+        const average = allScores.reduce((sum, s) => sum + s.score, 0) / allScores.length;
+        const average2026 = scores2026.length > 0
+            ? scores2026.reduce((sum, s) => sum + s.score, 0) / scores2026.length
+            : 0;
+
+        // 5. 최고 기록(최저 타수) 찾기 - 9홀(60타 미만) 제외
+        const fullScores = allScores.filter(s => s.score >= 60);
+        const fullScores2026 = scores2026.filter(s => s.score >= 60);
+
+        let bestScoreRecord = null;
+        if (fullScores.length > 0) {
+            bestScoreRecord = fullScores.reduce((prev, curr) => (prev.score < curr.score ? prev : curr));
+        }
+
+        let bestScoreRecord2026 = null;
+        if (fullScores2026.length > 0) {
+            bestScoreRecord2026 = fullScores2026.reduce((prev, curr) => (prev.score < curr.score ? prev : curr));
+        }
 
         return {
             totalRounds,
+            totalRounds2026: scores2026.length,
             averageScore: average.toFixed(1),
-            bestScore: bestScoreRecord.score,
-            bestScoreDetails: {
+            averageScore2026: average2026 > 0 ? average2026.toFixed(1) : "0.0",
+            bestScore: bestScoreRecord ? bestScoreRecord.score : "-",
+            bestScore2026: bestScoreRecord2026 ? bestScoreRecord2026.score : "-",
+            bestScoreDetails: bestScoreRecord ? {
                 course: bestScoreRecord.round.course,
                 date: bestScoreRecord.round.date
-            }
+            } : null,
+            bestScoreDetails2026: bestScoreRecord2026 ? {
+                course: bestScoreRecord2026.round.course,
+                date: bestScoreRecord2026.round.date
+            } : null
         };
     } catch (error: any) {
         console.error("Critical error in getDashboardStats:", error);
         return {
             totalRounds: 0,
+            totalRounds2026: 0,
             averageScore: "0.0",
+            averageScore2026: "0.0",
             bestScore: "-",
-            bestScoreDetails: null
+            bestScore2026: "-",
+            bestScoreDetails: null,
+            bestScoreDetails2026: null
         };
     }
 }
