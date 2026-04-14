@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PlusCircle, UserPlus, Settings, LayoutDashboard } from "lucide-react";
 import MemberManager from "./components/MemberManager";
@@ -17,10 +17,18 @@ export default function AdminPage() {
 
     const ADMIN_PASSWORD = "0112450313";
 
+    useEffect(() => {
+        const authStatus = sessionStorage.getItem("admin_authenticated");
+        if (authStatus === "true") {
+            setIsAuthenticated(true);
+        }
+    }, []);
+
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         if (password === ADMIN_PASSWORD) {
             setIsAuthenticated(true);
+            sessionStorage.setItem("admin_authenticated", "true");
             setError(false);
         } else {
             setError(true);

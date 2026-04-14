@@ -88,9 +88,9 @@ export default function ScoreDisplay() {
                             <div className="flex-1">
                                 <div className="flex justify-between items-start">
                                     <p className="text-sm text-gray-400 font-medium">{stat.label}</p>
-                                    <div className="flex flex-wrap gap-1 justify-end max-w-[120px]">
+                                    <div className="flex flex-wrap gap-1.5 justify-end max-w-[170px]">
                                         {stat.badges?.map((badge: any) => (
-                                            <p key={badge.label} className="text-[9px] text-[#c5a059] font-bold tracking-tight bg-[#c5a059]/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                            <p key={badge.label} className="text-sm text-[#c5a059] font-bold tracking-tight bg-[#c5a059]/10 px-2.5 py-0.5 rounded-full whitespace-nowrap">
                                                 {badge.label}: {badge.value}
                                             </p>
                                         ))}
@@ -104,7 +104,7 @@ export default function ScoreDisplay() {
                                     {stat.details && (
                                         <div className="mt-1.5 space-y-0.5">
                                             {stat.details.map((detail: any, i: number) => (
-                                                <p key={i} className={`text-[10px] font-medium flex items-center ${detail.label === '최고' ? 'text-gray-500' : 'text-[#c5a059]/80'}`}>
+                                                <p key={i} className={`text-sm font-medium flex items-center ${detail.label === '최고' ? 'text-gray-500' : 'text-[#c5a059]/80'}`}>
                                                     <span className={`w-1 h-1 rounded-full mr-1.5 ${detail.label === '최고' ? 'bg-gray-600' : 'bg-[#c5a059]/60'}`}></span>
                                                     {detail.label}: {detail.value.course} | {new Date(detail.value.date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')}
                                                 </p>
